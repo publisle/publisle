@@ -44,7 +44,7 @@
     "@publisle/core": "workspace:^",
     "@publisle/markdown": "workspace:^",
     "@publisle/schema": "workspace:^",
-    "katex": "^0.16.47"
+    "katex": "^0.19.0"
   },
   "peerDependencies": {
     "svelte": "^5.0.0"
