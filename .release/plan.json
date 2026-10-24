@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "release-53d2bd6321472c7b",
+  "id": "release-46b434db58b476a8",
   "versions": {
     "@publisle/adapter-astro": "0.2.2",
     "@publisle/adapter-core": "0.2.3",
@@ -16,7 +16,7 @@
     "@publisle/markdown": "0.1.3",
     "@publisle/playground": "0.2.5",
     "@publisle/profiles": "0.1.3",
-    "@publisle/research": "0.3.3",
+    "@publisle/research": "0.3.4",
     "@publisle/schema": "0.1.2",
     "@publisle/template-acm": "0.1.3",
     "@publisle/template-article": "0.1.3",
@@ -29,14 +29,9 @@
   },
   "releases": [
     {
-      "name": "@publisle/adapter-core",
-      "oldVersion": "0.2.2",
-      "version": "0.2.3"
-    },
-    {
-      "name": "@publisle/playground",
-      "oldVersion": "0.2.4",
-      "version": "0.2.5"
+      "name": "@publisle/research",
+      "oldVersion": "0.3.3",
+      "version": "0.3.4"
     }
   ]
 }
