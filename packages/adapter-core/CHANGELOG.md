@@ -1,5 +1,14 @@
 # @publisle/adapter-core
 
+## 0.2.2
+
+### Patch Changes
+
+- 751ff01: Suppress empty references and automatic LaTeX dates, keep tables before references,
+  and preserve native diagnostics when PDF export retries with LuaLaTeX. Load Markdown
+  and math support on demand in the playground, label PDF engines, and default the
+  site to dark while preserving saved theme preferences.
+
 ## 0.2.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@publisle/research",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Citation resolution and BibTeX, CSL, LaTeX, JATS, and PDF export. Tooling only; readers must not import it.",
   "license": "MIT",
   "keywords": [
