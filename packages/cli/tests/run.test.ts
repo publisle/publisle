@@ -246,8 +246,9 @@ describe("Node CLI safety and entrypoint", () => {
     };
     expect(invalidParsed.valid).toBe(false);
     expect(invalidParsed.diagnostics.length).toBeGreaterThan(0);
-    expect(invalidParsed.diagnostics[0].level).toBe("error");
-    expect(invalidParsed.diagnostics[0].code).toBeTruthy();
+    const [first] = invalidParsed.diagnostics;
+    expect(first?.level).toBe("error");
+    expect(first?.code).toBeTruthy();
   });
 
   it("rejects --diagnostics outside validate and non-text/json values", async () => {
