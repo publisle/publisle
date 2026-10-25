@@ -1,6 +1,6 @@
 {
   "name": "@publisle/cli",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Node CLI for validation, static reader builds, and explicit source upgrades.",
   "license": "MIT",
   "keywords": [

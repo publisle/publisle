@@ -1,5 +1,17 @@
 # @publisle/cli-research
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [a68e305]
+- Updated dependencies [fb368b4]
+- Updated dependencies [c7a24b2]
+- Updated dependencies [6793503]
+  - @publisle/research@0.4.0
+  - @publisle/template-sdk@0.1.6
+  - @publisle/cli@0.3.0
+
 ## 0.2.2
 
 ### Patch Changes
