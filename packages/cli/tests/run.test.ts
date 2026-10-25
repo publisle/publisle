@@ -35,19 +35,27 @@ describe("Node CLI safety and entrypoint", () => {
     await rm(directory, { recursive: true, force: true });
   });
 
-  async function invoke(args: string[]) {
+  async function invoke(args: string[], signal?: AbortSignal) {
     let stdout = "";
     let stderr = "";
-    const code = await runCli(args, {
-      stdout: (text) => {
-        stdout += text;
+    const runOptions = signal ? { signal } : undefined;
+    const code = await runCli(
+      args,
+      {
+        stdout: (text) => {
+          stdout += text;
+        },
+        stderr: (text) => {
+          stderr += text;
+        },
       },
-      stderr: (text) => {
-        stderr += text;
-      },
-    });
+      runOptions,
+    );
     return { code, stdout, stderr };
   }
+
+  const sleep = (ms: number) =>
+    new Promise<void>((resolveSleep) => setTimeout(resolveSleep, ms));
 
   // Repeated sealed-schema verification runs alongside the full worker suite, not a performance benchmark.
   it("inspects/exports JSON without executable host config and leaves source untouched", async () => {
@@ -259,6 +267,38 @@ describe("Node CLI safety and entrypoint", () => {
       (await invoke(["validate", file, "--diagnostics", "yaml"])).code,
     ).toBe(2);
   });
+  it("watch rebuilds on source changes and stops on abort", async () => {
+    const markdown = join(directory, "watch.md");
+    await writeFile(markdown, "# First\n");
+    const out = join(directory, "watch-out");
+    const controller = new AbortController();
+    const result = invoke(
+      ["build", markdown, "--out", out, "--watch"],
+      controller.signal,
+    );
+    const waitFor = async (needle: string) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        try {
+          const html = await readFile(join(out, "index.html"), "utf8");
+          if (html.includes(needle)) return;
+        } catch {
+          // Not written yet.
+        }
+        await sleep(100);
+      }
+      throw new Error(`watch output never contained ${needle}`);
+    };
+    await waitFor("First");
+    await writeFile(markdown, "# Second\n");
+    await waitFor("Second");
+    expect(
+      (await invoke(["build", join(directory, "absent.md"), "--out", out]))
+        .code,
+    ).toBe(2);
+    controller.abort();
+    expect((await result).code).toBe(0);
+    expect((await result).stdout).toContain("[watch] stopped");
+  }, 20000);
 
   it("reports malformed JSON, missing plugins and config failures without writing", async () => {
     expect((await invoke(["validate", file])).code).toBe(1);
