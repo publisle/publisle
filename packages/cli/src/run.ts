@@ -1,3 +1,4 @@
+import { watch as fsWatch, type FSWatcher } from "node:fs";
 import {
   chmod,
   copyFile,
@@ -7,10 +8,12 @@ import {
   mkdtemp,
   readFile,
   rename,
+  rm,
   rmdir,
   unlink,
   writeFile,
 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -90,6 +93,8 @@ Upgrade: [--output <new-file> | --in-place]. Lock: [--output <new-file>] (never 
 Config is trusted executable host code exporting a default CliConfig. Node >=24 required.
 validate accepts --diagnostics json to print machine-readable diagnostics as
 {"diagnostics":[...],"valid":boolean} on stdout (human text stays on stderr by default).
+build accepts --watch to keep rebuilding on source/config changes; it swaps a
+staged output directory into place atomically and needs a cancellation signal.
 Exit codes: 0 success (warnings allowed), 1 document errors, 2 usage/config/I/O errors.
 `;
 
@@ -181,6 +186,7 @@ async function replaceSource(
 export async function runCli(
   args: readonly string[],
   io: CliIo,
+  options?: { readonly signal?: AbortSignal },
 ): Promise<number> {
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
     io.stdout(help);
@@ -205,6 +211,7 @@ export async function runCli(
       let file: string | undefined;
       let outDirectory: string | undefined;
       let configFile: string | undefined;
+      let watch = false;
       const seen = new Set<string>();
       for (let index = 1; index < args.length; index += 1) {
         const arg = args[index];
@@ -216,14 +223,22 @@ export async function runCli(
         }
         if (seen.has(arg)) throw new Error(`Duplicate option ${arg}.`);
         seen.add(arg);
-        if (arg !== "--out" && arg !== "--config")
-          throw new Error("build accepts only --out and --config.");
+        if (arg !== "--out" && arg !== "--config" && arg !== "--watch")
+          throw new Error("build accepts only --out, --config, and --watch.");
+        if (arg === "--watch") {
+          watch = true;
+          continue;
+        }
         const value = args[++index];
         if (!value || value.startsWith("-"))
           throw new Error(`Missing value for ${arg}.`);
         if (arg === "--out") outDirectory = value;
         else configFile = value;
       }
+      if (watch && !options?.signal)
+        throw new Error(
+          "--watch requires a cancellation signal in this runner.",
+        );
       if (!file) throw new Error("An input file is required.");
       if (!outDirectory)
         throw new Error("build requires --out <new-directory>.");
@@ -237,87 +252,95 @@ export async function runCli(
             : undefined;
       if (!format)
         throw new Error("build reads .json or .md sources; got " + extension);
-      const config = await loadConfig(configFile);
-      const preparation: PrepareOptions = {
-        registry: createRegistry(coreBlockDefinitions),
-        unknownBlocks: "preserve",
-        ...config.prepare,
-      };
-      const source = await readFile(file, "utf8");
-      let sourceMap: DocumentSourceMap | undefined;
-      let input: Document;
-      const diagnostics: Diagnostic[] = [];
-      if (format === "markdown") {
-        const imported = fromMarkdown(source, {
-          ...config.markdown,
-          sourceName: file,
-          resolveSchemaVersion: (type: `${string}:${string}`) =>
-            preparation.registry.get(type)?.schemaVersion,
+
+      const buildOnce = async (staged: boolean): Promise<number> => {
+        const config = await loadConfig(configFile);
+        const preparation: PrepareOptions = {
+          registry: createRegistry(coreBlockDefinitions),
+          unknownBlocks: "preserve",
+          ...config.prepare,
+        };
+        const source = await readFile(file, "utf8");
+        let sourceMap: DocumentSourceMap | undefined;
+        let input: Document;
+        const diagnostics: Diagnostic[] = [];
+        if (format === "markdown") {
+          const imported = fromMarkdown(source, {
+            ...config.markdown,
+            sourceName: file,
+            resolveSchemaVersion: (type: `${string}:${string}`) =>
+              preparation.registry.get(type)?.schemaVersion,
+          });
+          diagnostics.push(...imported.diagnostics);
+          sourceMap = imported.sourceMap;
+          if (!imported.document) {
+            for (const item of diagnostics)
+              io.stderr(diagnosticText(item, file));
+            return 1;
+          }
+          input = imported.document;
+        } else {
+          try {
+            input = parseDocument(parseJson(source));
+          } catch (cause) {
+            io.stderr(
+              `${file}: ${cause instanceof Error ? cause.message : "Invalid document"}\n`,
+            );
+            return 1;
+          }
+        }
+        const prepared = prepare(input, {
+          ...preparation,
+          ...(sourceMap ? { sourceMap } : {}),
         });
-        diagnostics.push(...imported.diagnostics);
-        sourceMap = imported.sourceMap;
-        if (!imported.document) {
-          for (const item of diagnostics) io.stderr(diagnosticText(item, file));
-          return 1;
-        }
-        input = imported.document;
-      } else {
-        try {
-          input = parseDocument(parseJson(source));
-        } catch (cause) {
-          io.stderr(
-            `${file}: ${cause instanceof Error ? cause.message : "Invalid document"}\n`,
-          );
-          return 1;
-        }
-      }
-      const prepared = prepare(input, {
-        ...preparation,
-        ...(sourceMap ? { sourceMap } : {}),
-      });
-      diagnostics.push(
-        ...prepared.diagnostics.map((item) =>
-          locateDiagnostic(
-            item,
-            sourceMap ?? {
-              document: { source: file, line: 1, column: 1 },
-              blocks: {},
-            },
+        diagnostics.push(
+          ...prepared.diagnostics.map((item) =>
+            locateDiagnostic(
+              item,
+              sourceMap ?? {
+                document: { source: file, line: 1, column: 1 },
+                blocks: {},
+              },
+            ),
           ),
-        ),
-      );
-      for (const item of diagnostics) io.stderr(diagnosticText(item, file));
-      if (!prepared.document) return 1;
-      if (diagnostics.some(({ level }) => level === "error")) return 1;
-      const artifact = compilePublication(prepared.document);
-      const out = resolve(outDirectory);
-      // mkdir without recursive fails when the directory already exists:
-      // a build output is always a fresh directory.
-      await mkdir(out);
-      const styles = createRequire(import.meta.url);
-      const documentCss = styles.resolve("@publisle/adapter-core/document.css");
-      // The exported stylesheet is an @import stub; inline the real KaTeX
-      // stylesheet resolved from adapter-core's own dependency.
-      const katexCss = createRequire(documentCss).resolve(
-        "katex/dist/katex.min.css",
-      );
-      await Promise.all([
-        copyFile(documentCss, join(out, "document.css")),
-        copyFile(katexCss, join(out, "katex.css")),
-        cp(join(dirname(katexCss), "fonts"), join(out, "fonts"), {
-          recursive: true,
-        }),
-      ]);
-      const title = prepared.document.metadata?.title;
-      const blocks = prepared.document.blocks.length;
-      const islands = artifact.islands.length;
-      const escapeHtml = (value: string) =>
-        value
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;");
-      const page = `<!doctype html>
+        );
+        for (const item of diagnostics) io.stderr(diagnosticText(item, file));
+        if (!prepared.document) return 1;
+        if (diagnostics.some(({ level }) => level === "error")) return 1;
+        const artifact = compilePublication(prepared.document);
+        const out = resolve(outDirectory);
+        // Fresh builds refuse an existing directory; watch builds stage a
+        // sibling directory and swap it in so readers never see a partial one.
+        const target = staged
+          ? `${out}.watch-${randomUUID().slice(0, 8)}`
+          : out;
+        await mkdir(target);
+        const styles = createRequire(import.meta.url);
+        const documentCss = styles.resolve(
+          "@publisle/adapter-core/document.css",
+        );
+        // The exported stylesheet is an @import stub; inline the real KaTeX
+        // stylesheet resolved from adapter-core's own dependency.
+        const katexCss = createRequire(documentCss).resolve(
+          "katex/dist/katex.min.css",
+        );
+        await Promise.all([
+          copyFile(documentCss, join(target, "document.css")),
+          copyFile(katexCss, join(target, "katex.css")),
+          cp(join(dirname(katexCss), "fonts"), join(target, "fonts"), {
+            recursive: true,
+          }),
+        ]);
+        const title = prepared.document.metadata?.title;
+        const blocks = prepared.document.blocks.length;
+        const islands = artifact.islands.length;
+        const escapeHtml = (value: string) =>
+          value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;");
+        const page = `<!doctype html>
 <html lang="${escapeHtml(prepared.document.metadata?.language ?? "en")}">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -328,16 +351,89 @@ export async function runCli(
 ${artifact.html}
 </article>
 `;
-      await writeFile(join(out, "index.html"), page, { flag: "wx" });
-      await writeFile(
-        join(out, "publication.json"),
-        `${JSON.stringify(publicationReaderManifest(artifact), null, 2)}\n`,
-        { flag: "wx" },
-      );
-      io.stdout(
-        `${out}: built index.html from ${String(blocks)} block${blocks === 1 ? "" : "s"}${islands ? ` (${String(islands)} interactive block${islands === 1 ? "" : "s"} shipped as static fallbacks)` : ""}\n`,
-      );
-      return 0;
+        await writeFile(join(target, "index.html"), page, { flag: "wx" });
+        await writeFile(
+          join(target, "publication.json"),
+          `${JSON.stringify(publicationReaderManifest(artifact), null, 2)}\n`,
+          { flag: "wx" },
+        );
+        if (staged) {
+          const previous = `${out}.previous-${randomUUID().slice(0, 8)}`;
+          let hadPrevious = false;
+          try {
+            await rename(out, previous);
+            hadPrevious = true;
+          } catch (cause) {
+            if (!(
+              cause instanceof Error &&
+              "code" in cause &&
+              cause.code === "ENOENT"
+            ))
+              throw cause;
+          }
+          await rename(target, out);
+          if (hadPrevious) await rm(previous, { recursive: true, force: true });
+        }
+        io.stdout(
+          `${out}: built index.html from ${String(blocks)} block${blocks === 1 ? "" : "s"}${islands ? ` (${String(islands)} interactive block${islands === 1 ? "" : "s"} shipped as static fallbacks)` : ""}\n`,
+        );
+        return 0;
+      };
+      if (watch) {
+        // Watch the source and host config; rebuild into a staged directory
+        // and swap it in after the debounce window. The initial build runs
+        // first, and its exit code is the command's.
+        const initial = await buildOnce(true);
+        let timer: NodeJS.Timeout | undefined;
+        let running = false;
+        let rerun = false;
+        const rebuild = async () => {
+          if (running) {
+            rerun = true;
+            return;
+          }
+          running = true;
+          try {
+            const code = await buildOnce(true);
+            io.stdout(`[watch] rebuild finished (exit ${String(code)})\n`);
+          } catch (cause) {
+            io.stderr(
+              `[watch] rebuild failed: ${cause instanceof Error ? cause.message : String(cause)}\n`,
+            );
+          } finally {
+            running = false;
+            if (rerun) {
+              rerun = false;
+              void rebuild();
+            }
+          }
+        };
+        const schedule = () => {
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => void rebuild(), 150);
+        };
+        const watchers: FSWatcher[] = [
+          file,
+          ...(configFile ? [configFile] : []),
+        ].map((path) => fsWatch(path, { persistent: false }, schedule));
+        try {
+          await new Promise<void>((resolveWatch) => {
+            options?.signal?.addEventListener(
+              "abort",
+              () => {
+                resolveWatch();
+              },
+              { once: true },
+            );
+          });
+        } finally {
+          for (const handle of watchers) handle.close();
+          if (timer) clearTimeout(timer);
+        }
+        io.stdout("[watch] stopped\n");
+        return initial;
+      }
+      return await buildOnce(false);
     }
     if (command === "reading") {
       if (args.length !== 2 || !args[1] || args[1].startsWith("-"))
