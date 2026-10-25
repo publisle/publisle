@@ -31,7 +31,13 @@ export {
   compileNativePdf,
   type NativeCompileOptions,
   type NativeCompileResult,
-};
+} from "./native-node.ts";
+export {
+  checkSvg,
+  fetchFigureAsset,
+  type FetchedFigure,
+  type FigureFetchOptions,
+} from "./remote.ts";
 import type { ResearchLoss } from "./article.ts";
 import {
   parseDocument,
@@ -41,6 +47,7 @@ import {
 } from "@publisle/schema";
 import { createLatexPackage, type LatexPackageOptions } from "./package.ts";
 import type { LatexPackage } from "./package.ts";
+import { fetchFigureAsset } from "./remote.ts";
 
 const execute = promisify(execFile);
 
@@ -79,6 +86,8 @@ export interface CompileLatexOptions {
   readonly sourceDirectory: string;
   /** Total latexmk process timeout, default 120 seconds. */
   readonly timeoutMs?: number;
+  /** Dependency injection for remote figure fetches in tests. */
+  readonly fetch?: typeof globalThis.fetch;
   readonly compiler?: "auto" | "native" | "container";
   readonly containerImage?: string;
 }
@@ -184,6 +193,22 @@ export async function compileLatexPackage(
     const base = await realpath(options.sourceDirectory);
     await Promise.all(
       source.assets.map(async (asset) => {
+        if (/^https:\/\//iu.test(asset.source)) {
+          if (!options.fetch)
+            throw new Error(
+              "HTTPS figure assets require a network-capable runner.",
+            );
+          const figure = await fetchFigureAsset(asset.source, {
+            fetch: options.fetch,
+          });
+          const expected = asset.destination.replace(/\.[a-z0-9]+$/iu, "");
+          const destination = `${expected}.${figure.extension}`;
+          const remotePath = packagePath(directory, destination);
+          await mkdir(dirname(remotePath), { recursive: true });
+          await writeFile(remotePath, figure.bytes, { flag: "wx" });
+          files[destination] = new Uint8Array(figure.bytes);
+          return;
+        }
         const path = await realpath(resolve(base, asset.source));
         const local = relative(base, path);
         if (

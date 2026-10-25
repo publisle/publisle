@@ -197,16 +197,38 @@ describe("IEEE journal source packages", () => {
       };
       expect(() => createLatexPackage(changed)).toThrow(/Unresolved/u);
     }
-    for (const src of ["https://example.org/figure.png", "figure.svg"]) {
+    // HTTPS figures are fetched at package time (see figures.test.ts);
+    // non-HTTPS schemes and unsupported local formats still reject.
+    const httpsPackage = createLatexPackage({
+      ...input,
+      blocks: [
+        ...input.blocks,
+        createBlock({
+          type: "publisle:figure",
+          data: { src: "https://example.org/figure.png", alt: "A figure" },
+        }),
+      ],
+    });
+    expect(httpsPackage.assets).toContainEqual(
+      expect.objectContaining({ source: "https://example.org/figure.png" }),
+    );
+    for (const src of [
+      "http://example.org/figure.png",
+      "figure.svg",
+      "figure.tiff",
+    ]) {
       expect(() =>
         createLatexPackage({
           ...input,
           blocks: [
             ...input.blocks,
-            createBlock({ type: "publisle:figure", data: { src } }),
+            createBlock({
+              type: "publisle:figure",
+              data: { src, alt: "A figure" },
+            }),
           ],
         }),
-      ).toThrow(/figure asset/iu);
+      ).toThrow(/figure asset|HTTPS/iu);
     }
   });
 

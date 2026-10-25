@@ -250,16 +250,22 @@ export function renderLatexArticle(
     else if (block.kind === "figure") {
       if (pdfStandard && !block.alt.trim())
         throw new Error("Tagged PDF figures require alternative text.");
-      if (/^(?:[a-z]+:|\/\/)/iu.test(block.src))
-        throw new Error(`Remote figure assets are unsupported: ${block.src}`);
-      const extension = /\.(pdf|png|jpe?g)$/iu
-        .exec(block.src)?.[1]
-        ?.toLowerCase();
+      const remote = /^(?:[a-z]+:|\/\/)/iu.test(block.src);
+      if (remote && !block.src.startsWith("https://"))
+        throw new Error(`Remote figure assets require HTTPS: ${block.src}`);
+      const extension = remote
+        ? /\.(pdf|png|jpe?g|svg)(?:[?#]|$)/iu
+            .exec(block.src)?.[1]
+            ?.toLowerCase()
+        : /\.(pdf|png|jpe?g)$/iu.exec(block.src)?.[1]?.toLowerCase();
       if (!extension)
         throw new Error(
-          `Unsupported figure asset (use PDF, PNG or JPEG): ${block.src}`,
+          remote
+            ? `Remote figure URLs must end in PDF, PNG, JPEG or SVG: ${block.src}`
+            : `Unsupported figure asset (use PDF, PNG or JPEG): ${block.src}`,
         );
-      const destination = `assets/figure-${String(assets.length + 1)}.${extension}`;
+      // Self-contained remote SVGs are rasterized to PNG at package time.
+      const destination = `assets/figure-${String(assets.length + 1)}.${remote && extension === "svg" ? "png" : extension}`;
       assets.push({ source: block.src, destination });
       target.push(
         `\\begin{figure}[!tb]\n\\centering\n\\includegraphics[width=\\columnwidth${pdfStandard ? `,alt={${latexText(block.alt)}}` : ""}]{${destination}}\n\\caption{${take(block.caption)}}${label}\n\\end{figure}`,
