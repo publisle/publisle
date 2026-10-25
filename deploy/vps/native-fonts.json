@@ -30,7 +30,7 @@
   },
   {
     "path": "/app/fonts/NotoSerif-BoldItalic.ttf",
-    "role": "fallback"
+    "role": "bold-italic"
   },
   {
     "path": "/app/fonts/DejaVuSansMono-Bold.ttf",

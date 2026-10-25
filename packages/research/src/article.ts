@@ -5,6 +5,7 @@ import type {
   Article,
   ArticleBlock,
   ArticleInline,
+  ArticleMark,
   CitationCluster,
   CitationRef,
   CitationEntry,
@@ -152,6 +153,13 @@ function citationCluster(
   };
 }
 
+/** Nested emphasis/strong pairs map onto one combined font role. */
+function combinedMark(outer: ArticleMark, inner: ArticleMark): ArticleMark {
+  const marks = new Set([outer, inner]);
+  if (marks.has("strong") && marks.has("emphasis")) return "bold-italic";
+  return inner;
+}
+
 function inlineList(value: unknown, losses: ResearchLoss[]): ArticleInline[] {
   if (!Array.isArray(value)) return [];
   const result: ArticleInline[] = [];
@@ -173,8 +181,15 @@ function inlineList(value: unknown, losses: ResearchLoss[]): ArticleInline[] {
     ) {
       const mark = type === "strikethrough" ? "strike" : type;
       for (const child of inlineList(node["children"], losses)) {
-        if (child.type === "text") result.push({ ...child, mark });
-        else result.push(child);
+        if (child.type === "text") {
+          result.push({
+            ...child,
+            mark:
+              child.mark && child.mark !== mark
+                ? combinedMark(child.mark, mark)
+                : mark,
+          });
+        } else result.push(child);
       }
     } else if (type === "inlineCode" && typeof node["value"] === "string") {
       result.push({ type: "text", value: node["value"], mark: "code" });

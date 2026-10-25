@@ -20,11 +20,13 @@ export interface CitationCluster {
   readonly suffix?: string;
 }
 
+export type ArticleMark =
+  "emphasis" | "strong" | "code" | "strike" | "bold-italic";
 export type ArticleInline =
   | {
       readonly type: "text";
       readonly value: string;
-      readonly mark?: "emphasis" | "strong" | "code" | "strike";
+      readonly mark?: ArticleMark;
       readonly direction?: WritingDirection;
       readonly reference?: {
         readonly kind: "footnote" | "cross";
