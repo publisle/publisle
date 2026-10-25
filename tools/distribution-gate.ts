@@ -417,6 +417,193 @@ assert.match(
   /Packed Astro consumer/,
 );
 console.log("Packed Astro integration, component, CSS and static build pass.");
+// Verify the two other framework host guides against the actual package
+// tarballs, rather than only against workspace links.
+const vueConsumer = join(stage, "vue-consumer");
+await mkdir(join(vueConsumer, "src"), { recursive: true });
+await writeFile(
+  join(vueConsumer, "package.json"),
+  JSON.stringify({ private: true, type: "module" }),
+);
+const vueTarball = packed.get("@publisle/adapter-vue");
+assert(vueTarball);
+run(
+  "npm",
+  [
+    "install",
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund",
+    ...selected.map((name) => {
+      const path = packed.get(name);
+      assert(path);
+      return relative(vueConsumer, path);
+    }),
+    relative(vueConsumer, vueTarball),
+    "vue@^3.5.0",
+    "vite@^8.0.0",
+  ],
+  vueConsumer,
+);
+await writeFile(
+  join(vueConsumer, "vite.config.ts"),
+  `import {defineConfig} from 'vite'; import {publisleVue} from '@publisle/adapter-vue'; import {coreBlockDefinitions} from '@publisle/blocks-core'; import {createRegistry} from '@publisle/core'; export default defineConfig({plugins:[await publisleVue({registry:createRegistry(coreBlockDefinitions)})]});`,
+);
+await writeFile(
+  join(vueConsumer, "index.html"),
+  `<main id="app"></main><script type="module" src="/src/main.ts"></script>`,
+);
+await writeFile(
+  join(vueConsumer, "src/article.md"),
+  `## Packed Vue article\n\nBuilt from the published adapter package.\n`,
+);
+await writeFile(
+  join(vueConsumer, "src/main.ts"),
+  `import {createApp, h} from 'vue'; import Article from './article.md'; createApp({render:()=>h(Article,{instanceId:'vue-packed'})}).mount('#app');`,
+);
+run(join(vueConsumer, "node_modules/.bin/vite"), ["build"], vueConsumer);
+const vueAssets = await readdir(join(vueConsumer, "dist/assets"));
+assert(
+  (
+    await Promise.all(
+      vueAssets.map(async (asset) =>
+        (
+          await readFile(join(vueConsumer, "dist/assets", asset), "utf8")
+        ).includes("Packed Vue article"),
+      ),
+    )
+  ).some(Boolean),
+  "Packed Vue output is missing article content",
+);
+console.log("Packed Vue integration and static build pass.");
+
+const nextConsumer = join(stage, "next-consumer");
+await mkdir(join(nextConsumer, "app"), { recursive: true });
+await writeFile(
+  join(nextConsumer, "package.json"),
+  JSON.stringify({ private: true, type: "module" }),
+);
+const nextTarball = packed.get("@publisle/adapter-next");
+assert(nextTarball);
+run(
+  "npm",
+  [
+    "install",
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund",
+    ...selected.map((name) => {
+      const path = packed.get(name);
+      assert(path);
+      return relative(nextConsumer, path);
+    }),
+    relative(nextConsumer, nextTarball),
+    "next@16.4.3",
+    "react@^19.0.0",
+    "react-dom@^19.0.0",
+    "@types/react@^19.0.0",
+    "@types/react-dom@^19.0.0",
+    // next build refuses to type-check a TypeScript app without it.
+    "@types/node@^24.0.0",
+    "typescript@~6.0.3",
+  ],
+  nextConsumer,
+);
+await writeFile(
+  join(nextConsumer, "next.config.ts"),
+  `import type {NextConfig} from 'next'; const config: NextConfig = {output:'export'}; export default config;`,
+);
+await writeFile(
+  join(nextConsumer, "tsconfig.json"),
+  JSON.stringify({
+    compilerOptions: {
+      target: "ES2017",
+      lib: ["dom", "dom.iterable", "esnext"],
+      allowJs: false,
+      skipLibCheck: true,
+      strict: true,
+      noEmit: true,
+      allowImportingTsExtensions: true,
+      esModuleInterop: true,
+      module: "esnext",
+      moduleResolution: "bundler",
+      resolveJsonModule: true,
+      isolatedModules: true,
+      jsx: "preserve",
+      plugins: [{ name: "next" }],
+    },
+    include: ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
+    exclude: ["node_modules"],
+  }),
+);
+await writeFile(
+  join(nextConsumer, "next-env.d.ts"),
+  `/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n`,
+);
+await writeFile(
+  join(nextConsumer, "article.json"),
+  JSON.stringify({
+    schemaVersion: 1,
+    metadata: { title: "Packed Next article", language: "en" },
+    blocks: [
+      {
+        id: "00000000-0000-4000-8000-000000000001",
+        type: "publisle:paragraph",
+        schemaVersion: 1,
+        data: { content: [{ type: "text", value: "Packed Next article" }] },
+      },
+    ],
+  }),
+);
+await writeFile(
+  join(nextConsumer, "app/layout.tsx"),
+  `export default function Layout({children}:{children:React.ReactNode}){return <html><body>{children}</body></html>}`,
+);
+await writeFile(
+  join(nextConsumer, "app/page.tsx"),
+  `import {loadPublication,PublisleArticle} from '@publisle/adapter-next'; import {coreBlockDefinitions} from '@publisle/blocks-core'; import {createRegistry} from '@publisle/core'; import {join} from 'node:path'; export default async function Page(){const publication=await loadPublication(join(process.cwd(),'article.json'),{registry:createRegistry(coreBlockDefinitions)}); return <PublisleArticle publication={publication} instanceId="next-packed"/>;}`,
+);
+// The interactive host route compiles the guide's client-wrapper pattern under
+// the consumer's strict tsconfig, so the documented props typing and the
+// `@publisle/adapter-next/client` export are both exercised by this gate.
+await mkdir(join(nextConsumer, "app/interactive"), { recursive: true });
+await writeFile(
+  join(nextConsumer, "app/interactive/Counter.tsx"),
+  `"use client";
+import {useState} from 'react';
+export default function Counter(){const [count,setCount]=useState(0);return <button type="button" onClick={()=>setCount((value)=>value+1)}>packed counter {count}</button>;}`,
+);
+await writeFile(
+  join(nextConsumer, "app/interactive/Reader.tsx"),
+  `"use client";
+import {ClientAttachment,type ClientAttachmentProps} from '@publisle/adapter-next/client';
+export default function Reader({manifest,instanceId}:Pick<ClientAttachmentProps,'manifest'|'instanceId'>){
+  return <ClientAttachment manifest={manifest} instanceId={instanceId} implementations={{'host:counter':()=>import('./Counter.tsx')}}/>;
+}`,
+);
+await writeFile(
+  join(nextConsumer, "app/interactive/page.tsx"),
+  `import {loadPublication} from '@publisle/adapter-next';
+import {publicationReaderManifest} from '@publisle/adapter-core';
+import {coreBlockDefinitions} from '@publisle/blocks-core';
+import {createRegistry} from '@publisle/core';
+import {join} from 'node:path';
+import Reader from './Reader.tsx';
+export default async function Page(){
+  const publication=await loadPublication(join(process.cwd(),'article.json'),{registry:createRegistry(coreBlockDefinitions)});
+  return <Reader manifest={publicationReaderManifest(publication)} instanceId="next-packed-interactive"/>;
+}`,
+);
+run(
+  join(nextConsumer, "node_modules/.bin/next"),
+  ["build", "--webpack"],
+  nextConsumer,
+);
+assert.match(
+  await readFile(join(nextConsumer, "out/index.html"), "utf8"),
+  /Packed Next article/,
+);
+console.log("Packed Next integration and static build pass.");
 // Keep Research in a separate installation so the original Core-only tree
 // remains a mechanical proof of the optional tooling boundary.
 const researchConsumer = join(stage, "research-consumer");
