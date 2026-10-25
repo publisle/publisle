@@ -1,5 +1,21 @@
 # @publisle/template-sdk
 
+## 0.1.6
+
+### Patch Changes
+
+- a68e305: Nested strong and emphasis now project to a combined `bold-italic` mark
+  instead of collapsing to the outer wrapper, and the pinned font manifest
+  registers NotoSerif-BoldItalic under that role, so `***bold italic***`
+  renders with the bold-italic face in native exports (gap 14). The
+  template-sdk inline mark union gains the `bold-italic` value.
+- c7a24b2: Local LaTeX exports accept HTTPS figure URLs at package time with the
+  hosted service's safety rules: HTTPS-only, content-type allowlist, the
+  4 MiB image / 16 MiB PDF byte caps, self-contained SVG validation
+  (checkSvg moved to @publisle/research and re-exported), and sharp
+  rasterization of remote SVGs to PNG. Non-HTTPS schemes keep rejecting
+  with clear errors, and local figure files are untouched.
+
 ## 0.1.5
 
 ### Patch Changes

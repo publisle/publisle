@@ -1,6 +1,6 @@
 {
   "name": "@publisle/cli-research",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Optional Publisle Research profile CLI plugin: journal export, bibliography acquisition, and compiler tooling.",
   "license": "MIT",
   "keywords": [

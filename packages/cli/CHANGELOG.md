@@ -1,5 +1,19 @@
 # @publisle/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- fb368b4: `publisle build --watch` keeps running and rebuilds when the source or
+  host config changes, debouncing by 150 ms. Watch rebuilds stage a sibling
+  output directory and rename it over the previous output, so readers never
+  see a partial build. Requires an embedding host that supplies a
+  cancellation signal.
+- 6793503: `publisle validate` accepts `--diagnostics json`, printing the structured
+  diagnostics as `{"diagnostics":[...],"valid":boolean}` on stdout with
+  unchanged exit codes, for CI pipelines and editors. The human text output
+  stays the default and remains on stderr.
+
 ## 0.2.2
 
 ### Patch Changes
