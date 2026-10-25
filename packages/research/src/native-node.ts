@@ -86,9 +86,14 @@ export async function compileNativePdf(
       if (
         !isPlainObject(entry) ||
         typeof entry["path"] !== "string" ||
-        !["regular", "bold", "italic", "mono", "fallback"].includes(
-          String(entry["role"]),
-        ) ||
+        ![
+          "regular",
+          "bold",
+          "italic",
+          "bold-italic",
+          "mono",
+          "fallback",
+        ].includes(String(entry["role"])) ||
         (entry["index"] !== undefined &&
           (!Number.isSafeInteger(entry["index"]) || Number(entry["index"]) < 0))
       )

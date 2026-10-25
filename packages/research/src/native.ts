@@ -21,7 +21,8 @@ export const NATIVE_PDF_TEMPLATES = [
 export type NativePdfTemplate = (typeof NATIVE_PDF_TEMPLATES)[number];
 export interface NativeFont {
   readonly path: string;
-  readonly role: "regular" | "bold" | "italic" | "mono" | "fallback";
+  readonly role:
+    "regular" | "bold" | "italic" | "bold-italic" | "mono" | "fallback";
   readonly index?: number;
 }
 export interface NativePdfInput {
