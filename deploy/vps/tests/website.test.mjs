@@ -162,7 +162,9 @@ test(
       await page.route(`${apiUrl}/**`, async (route) => {
         const headers = { ...route.request().headers() };
         delete headers.origin;
-        const response = await route.fetch({ headers });
+        // Cold LaTeX compilations legitimately exceed Playwright's default
+        // 30 s routing timeout (multi-pass latexmk on a fresh TeX cache).
+        const response = await route.fetch({ headers, timeout: 180_000 });
         await route.fulfill({
           response,
           headers: {
