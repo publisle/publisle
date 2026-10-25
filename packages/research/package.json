@@ -26,7 +26,8 @@
     "@publisle/template-article": "workspace:^",
     "@publisle/template-sdk": "workspace:^",
     "citeproc": "2.4.63",
-    "fflate": "0.8.3"
+    "fflate": "0.8.3",
+    "sharp": "0.35.5"
   },
   "publishConfig": {
     "access": "public",

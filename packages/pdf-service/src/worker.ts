@@ -21,7 +21,7 @@ import {
   type NativeFont,
   type NativePdfTemplate,
 } from "@publisle/research";
-import { compileNativePdf } from "@publisle/research/node";
+import { compileNativePdf, checkSvg } from "@publisle/research/node";
 import { template as ieee } from "@publisle/template-ieee";
 import { template as acm } from "@publisle/template-acm";
 import { template as springer } from "@publisle/template-springer";
@@ -117,26 +117,6 @@ function replaceFigures(
       return { ...block, data: { ...data, src: path } };
     }),
   };
-}
-
-export function checkSvg(source: string): void {
-  // Decode only UTF-8, disallow entities, script, foreign content, CSS escapes,
-  // imports and external href/url references before invoking the decoder.
-  if (
-    !/<svg(?:\s|>)/iu.test(source) ||
-    /<!DOCTYPE|<!ENTITY|<script\b|<foreignObject\b|<\?xml-stylesheet|\\|@import/iu.test(
-      source,
-    ) ||
-    [...source.matchAll(/(?:\b|:)href\s*=\s*(["'])(.*?)\1/giu)].some(
-      (match) => !/^#[A-Za-z0-9_.:-]+$/u.test(match[2] ?? ""),
-    ) ||
-    [...source.matchAll(/url\s*\((.*?)\)/giu)].some(
-      (match) => !/^\s*["']?#[A-Za-z0-9_.:-]+["']?\s*$/u.test(match[1] ?? ""),
-    )
-  )
-    throw new Error(
-      "SVG images must be self-contained and contain no active content.",
-    );
 }
 
 export async function convertAssets(

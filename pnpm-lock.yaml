@@ -1050,6 +1050,9 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@26.6.5)
     optionalDependencies:
       '@publisle/pdf-native-darwin-arm64':
         specifier: 0.5.0

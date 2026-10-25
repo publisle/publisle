@@ -161,3 +161,121 @@ export async function lookupDoi(
     options,
   );
 }
+
+/** Maximum bytes for a fetched raster/vector image (service parity). */
+const IMAGE_BYTES = 4 * 1024 * 1024;
+/** Maximum bytes for a fetched PDF figure (service parity). */
+const PDF_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Reject SVG sources that are not self-contained before any decoder runs:
+ * no doctype, entities, script, foreign objects, stylesheets, escapes,
+ * imports, or external href/url references.
+ */
+export function checkSvg(source: string): void {
+  if (
+    !/<svg(?:\s|>)/iu.test(source) ||
+    /<!DOCTYPE|<!ENTITY|<script\b|<foreignObject\b|<\?xml-stylesheet|\\|@import/iu.test(
+      source,
+    ) ||
+    [...source.matchAll(/(?:\b|:)href\s*=\s*(["'])(.*?)\1/giu)].some(
+      (match) => !/^#[A-Za-z0-9_.:-]+$/u.test(match[2] ?? ""),
+    ) ||
+    [...source.matchAll(/url\s*\((.*?)\)/giu)].some(
+      (match) => !/^\s*["']?#[A-Za-z0-9_.:-]+["']?\s*$/u.test(match[1] ?? ""),
+    )
+  )
+    throw new Error(
+      "SVG images must be self-contained and contain no active content.",
+    );
+}
+
+export interface FigureFetchOptions {
+  /** Dependency injection for tests; production uses global fetch. */
+  readonly fetch?: typeof globalThis.fetch;
+  /** Total fetch deadline, default 10 seconds (service parity). */
+  readonly timeoutMs?: number;
+}
+
+export interface FetchedFigure {
+  readonly bytes: Uint8Array;
+  readonly extension: "png" | "jpg" | "pdf";
+}
+
+/**
+ * Fetch a remote figure with the hosted service's safety rules: HTTPS only,
+ * content-type allowlist, per-figure byte caps, and self-contained SVGs
+ * rasterized to PNG through sharp.
+ */
+export async function fetchFigureAsset(
+  url: string,
+  options: FigureFetchOptions = {},
+): Promise<FetchedFigure> {
+  if (!url.startsWith("https://"))
+    throw new Error(`Remote figure assets require HTTPS: ${url}`);
+  const request = options.fetch ?? globalThis.fetch;
+  const response = await request(url, {
+    signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
+    headers: {
+      accept: "image/png, image/jpeg, image/svg+xml, application/pdf",
+    },
+  });
+  if (!response.ok)
+    throw new Error(
+      `Figure fetch failed with HTTP ${String(response.status)}.`,
+    );
+  const type = (response.headers.get("content-type") ?? "")
+    .split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  const declared =
+    type === "image/svg+xml"
+      ? "svg"
+      : type === "image/jpeg"
+        ? "jpg"
+        : type === "image/png"
+          ? "png"
+          : type === "application/pdf"
+            ? "pdf"
+            : undefined;
+  if (!declared)
+    throw new Error(`Unsupported figure content type: ${type ?? "missing"}.`);
+  const cap = declared === "pdf" ? PDF_BYTES : IMAGE_BYTES;
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.length > cap)
+    throw new Error(
+      `Figure exceeds ${String(Math.floor(cap / 1024 / 1024))} MiB.`,
+    );
+  if (declared === "pdf") return { bytes, extension: "pdf" };
+  const { default: sharp } = await import("sharp");
+  sharp.cache(false);
+  sharp.concurrency(1);
+  const image = sharp(bytes, {
+    limitInputPixels: 8_000_000,
+    failOn: "warning",
+    animated: false,
+  });
+  if (declared === "svg") {
+    checkSvg(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    const metadata = await image.metadata();
+    if (
+      !metadata.width ||
+      !metadata.height ||
+      metadata.width * metadata.height > 8_000_000
+    )
+      throw new Error("Invalid or oversized SVG figure.");
+    return {
+      bytes: new Uint8Array(await image.png().toBuffer()),
+      extension: "png",
+    };
+  }
+  const metadata = await image.metadata();
+  if (
+    !metadata.width ||
+    !metadata.height ||
+    metadata.width * metadata.height > 8_000_000 ||
+    metadata.format !== (declared === "jpg" ? "jpeg" : declared)
+  )
+    throw new Error("Invalid or oversized image figure.");
+  return { bytes, extension: declared };
+}

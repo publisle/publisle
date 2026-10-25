@@ -3,7 +3,8 @@ import { document, createBlock } from "@publisle/schema";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { convertAssets, checkSvg, lowerImages } from "../src/worker.ts";
+import { convertAssets, lowerImages } from "../src/worker.ts";
+import { checkSvg } from "@publisle/research/node";
 
 it("rejects SVG active content, file references, CSS imports and decoder escapes", () => {
   checkSvg(
