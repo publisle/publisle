@@ -217,6 +217,49 @@ describe("Node CLI safety and entrypoint", () => {
     expect(result.stderr).toContain(file);
   });
 
+  it("validate --diagnostics json prints structured diagnostics on stdout", async () => {
+    const markdown = join(directory, "source.md");
+    await writeFile(markdown, "# Heading\n\nBody\n");
+    const valid = await invoke([
+      "validate",
+      markdown,
+      "--format",
+      "markdown",
+      "--diagnostics",
+      "json",
+    ]);
+    expect(valid.code).toBe(0);
+    const parsed = JSON.parse(valid.stdout) as {
+      diagnostics: { level: string; code: string }[];
+      valid: boolean;
+    };
+    expect(parsed.valid).toBe(true);
+    expect(Array.isArray(parsed.diagnostics)).toBe(true);
+    expect(valid.stderr).not.toContain("valid");
+
+    await writeFile(file, "{");
+    const invalid = await invoke(["validate", file, "--diagnostics", "json"]);
+    expect(invalid.code).toBe(1);
+    const invalidParsed = JSON.parse(invalid.stdout) as {
+      diagnostics: { level: string; code: string }[];
+      valid: boolean;
+    };
+    expect(invalidParsed.valid).toBe(false);
+    expect(invalidParsed.diagnostics.length).toBeGreaterThan(0);
+    const [first] = invalidParsed.diagnostics;
+    expect(first?.level).toBe("error");
+    expect(first?.code).toBeTruthy();
+  });
+
+  it("rejects --diagnostics outside validate and non-text/json values", async () => {
+    expect(
+      (await invoke(["upgrade", file, "--diagnostics", "json"])).code,
+    ).toBe(2);
+    expect(
+      (await invoke(["validate", file, "--diagnostics", "yaml"])).code,
+    ).toBe(2);
+  });
+
   it("reports malformed JSON, missing plugins and config failures without writing", async () => {
     expect((await invoke(["validate", file])).code).toBe(1);
     await writeFile(file, "{");

@@ -88,6 +88,8 @@ Research profile (requires the optional @publisle/cli-research plugin):
 Upgrade: [--output <new-file> | --in-place]. Lock: [--output <new-file>] (never in-place).
 --output refuses existing files.
 Config is trusted executable host code exporting a default CliConfig. Node >=24 required.
+validate accepts --diagnostics json to print machine-readable diagnostics as
+{"diagnostics":[...],"valid":boolean} on stdout (human text stays on stderr by default).
 Exit codes: 0 success (warnings allowed), 1 document errors, 2 usage/config/I/O errors.
 `;
 
@@ -394,6 +396,7 @@ ${artifact.html}
     let configFile: string | undefined;
     let outputFile: string | undefined;
     let format: "json" | "markdown" | undefined;
+    let diagnosticsFormat: "text" | "json" = "text";
     let inPlace = false;
     const seen = new Set<string>();
     for (let index = 1; index < args.length; index++) {
@@ -410,13 +413,25 @@ ${artifact.html}
         inPlace = true;
         continue;
       }
-      if (arg !== "--config" && arg !== "--output" && arg !== "--format")
+      if (
+        arg !== "--config" &&
+        arg !== "--output" &&
+        arg !== "--format" &&
+        arg !== "--diagnostics"
+      )
         throw new Error(`Unknown option ${arg}.`);
       const value = args[++index];
       if (!value || value.startsWith("-"))
         throw new Error(`Missing value for ${arg}.`);
       if (arg === "--config") configFile = value;
       if (arg === "--output") outputFile = value;
+      if (arg === "--diagnostics") {
+        if (command !== "validate")
+          throw new Error("--diagnostics is only supported for validate.");
+        if (value !== "text" && value !== "json")
+          throw new Error("--diagnostics must be text or json.");
+        diagnosticsFormat = value;
+      }
       if (arg === "--format") {
         if (value !== "json" && value !== "markdown")
           throw new Error("--format must be json or markdown.");
@@ -485,9 +500,18 @@ ${artifact.html}
       command === "lock"
         ? await lockSource(original, operation)
         : processSource(original, { ...operation, command });
+    const hasErrors = result.diagnostics.some(({ level }) => level === "error");
+    if (diagnosticsFormat === "json") {
+      if (command === "validate") {
+        io.stdout(
+          `${JSON.stringify({ diagnostics: result.diagnostics, valid: !hasErrors }, null, 2)}\n`,
+        );
+        return hasErrors ? 1 : 0;
+      }
+    }
     for (const item of result.diagnostics)
       io.stderr(diagnosticText(item, file));
-    if (result.diagnostics.some(({ level }) => level === "error")) return 1;
+    if (hasErrors) return 1;
     if (command === "validate") {
       io.stderr(`${file}: valid\n`);
       return 0;
