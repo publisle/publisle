@@ -131,7 +131,8 @@ export function toPdf(
     else if (block.kind === "list") {
       block.items.forEach((item, index) => {
         const marker = block.ordered ? `${String(index + 1)}. ` : "- ";
-        add(`${marker}${plain(item, resolved, cursor)}`, 11);
+        const inlines = "content" in item ? item.content : item;
+        add(`${marker}${plain(inlines, resolved, cursor)}`, 11);
       });
     } else if (block.kind === "quote") {
       for (const paragraph of block.paragraphs)

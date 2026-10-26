@@ -69,7 +69,8 @@ export type ArticleBlock = (
   | {
       readonly kind: "list";
       readonly ordered: boolean;
-      readonly items: readonly (readonly ArticleInline[])[];
+      readonly start?: number;
+      readonly items: readonly (readonly ArticleInline[] | ArticleListItem)[];
       readonly abstract: boolean;
     }
   | {
@@ -80,6 +81,7 @@ export type ArticleBlock = (
   | {
       readonly kind: "code";
       readonly value: string;
+      readonly language?: string;
       readonly abstract: boolean;
     }
   | {
@@ -92,6 +94,7 @@ export type ArticleBlock = (
       readonly kind: "table";
       readonly caption?: readonly ArticleInline[];
       readonly headerRows?: number;
+      readonly align?: readonly ("left" | "right" | "center" | null)[];
       readonly rows: readonly (readonly (readonly ArticleInline[])[])[];
       readonly abstract: boolean;
     }
@@ -110,6 +113,19 @@ export type ArticleBlock = (
   | { readonly kind: "bibliography" }
 ) & { readonly label?: string };
 
+/** One list item: inline content with optional nested sub-lists. */
+export interface ArticleListItem {
+  readonly content: readonly ArticleInline[];
+  readonly children?: readonly ArticleList[];
+}
+
+/** A list, recursive so list items can nest. */
+export interface ArticleList {
+  readonly ordered: boolean;
+  readonly start?: number;
+  readonly items: readonly (readonly ArticleInline[] | ArticleListItem)[];
+}
+
 export interface Article {
   readonly title?: string;
   readonly authors: readonly string[];
@@ -117,6 +133,8 @@ export interface Article {
   readonly subjects?: readonly string[];
   readonly language?: string;
   readonly direction?: WritingDirection;
+  /** Authored publication date (ISO-8601), rendered in the front matter. */
+  readonly date?: string;
   readonly blocks: readonly ArticleBlock[];
   readonly entries: readonly CitationEntry[];
   readonly losses: readonly ResearchLoss[];
