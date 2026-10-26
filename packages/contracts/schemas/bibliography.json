@@ -43,6 +43,9 @@
           "publisher": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "doi": {
             "type": "string"
           },

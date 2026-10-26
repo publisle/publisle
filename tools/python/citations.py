@@ -174,6 +174,31 @@ def localized_range(value, locale):
     return value.replace("-", "‑" if locale == "fr-FR" else "–")
 
 
+def sentences(parts):
+    """Join populated CSL groups while suppressing adjacent punctuation."""
+    value = ""
+    for part in filter(None, parts):
+        if value:
+            value += " " if value.endswith((".", "?", "!", ";", ":")) else ". "
+        value += part
+    return value
+
+
+def publication_details(entry, locale):
+    volume, issue, page = (entry.get(field, "") for field in ("volume", "issue", "page"))
+    if entry.get("type") in ("article-journal", "article-magazine", "article-newspaper"):
+        number = volume + ("(" + issue + ")" if issue else "")
+        location = ": ".join(filter(None, [number, localized_range(page, locale)]))
+        container = ", ".join(filter(None, [entry.get("containerTitle", ""), location]))
+    else:
+        page_label = "pp." if locale != "fr-FR" and "-" in page else "p."
+        container = ", ".join(filter(None, [entry.get("containerTitle", ""),
+                              "vol. " + volume if volume else "",
+                              "(" + issue + ")" if issue else "",
+                              page_label + " " + localized_range(page, locale) if page else ""]))
+    return sentences([container, entry.get("publisher", "")])
+
+
 def numeric_marker(items, numbers, locale):
     items = sorted(items, key=lambda item: numbers[item["id"]])
     parts, index = [], 0
@@ -273,20 +298,18 @@ def resolve_portable_citations(document, style="numeric", locale="en-US"):
         opaque = (entry.get("raw") and not entry.get("title")
                   and not entry.get("authors") and not entry.get("issued"))
         title = entry["raw"] if opaque else entry.get("title", "")
+        publication = publication_details(entry, locale)
+        identifiers = sentences(["https://doi.org/" + entry["doi"] if entry.get("doi") else "",
+                                 entry.get("url", "")])
         if style == "numeric":
             value = str(index + 1) + ". " + author + (", " + title if title else "")
-            for field, prefix, suffix in [("containerTitle", ", ", ""), ("volume", " ", ""), ("issue", "(", ")"), ("page", ": ", "")]:
-                if entry.get(field):
-                    value += prefix + (localized_range(entry[field], locale) if field == "page" else entry[field]) + suffix
+            value = sentences([value, publication])
             if year:
                 value += " (" + year + ")"
-            if entry.get("doi"):
-                value += ". https://doi.org/" + entry["doi"]
+            value = sentences([value, identifiers])
         else:
             value = author + (" (" + year + ")" if year else "")
-            for content in (title, entry.get("containerTitle", "")):
-                if content:
-                    value += (" " if value.endswith((".", "?", "!", ";", ":")) else ". ") + content
+            value = sentences([value, title, publication, identifiers])
             if not value.endswith((".", "?", "!", ";", ":")):
                 value += "."
         result["bibliography"].append({"id": key, "label": str(index + 1), "text": normalize(value)})

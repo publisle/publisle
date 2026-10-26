@@ -6507,7 +6507,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Énergie & méthodes — مرحبا, Journal of Notes 3(2): 10–20 (2020). https://doi.org/10.1000/note"
+            "text": "1. Jane Doe, Énergie & méthodes — مرحبا. Journal of Notes, vol. 3, (2), pp. 10–20. Ignored Press (2020). https://doi.org/10.1000/note. https://example.test"
           }
         ],
         "unresolved": [],
@@ -6585,7 +6585,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Énergie & méthodes — مرحبا, Journal of Notes 3(2): 10‑20 (2020). https://doi.org/10.1000/note"
+            "text": "1. Jane Doe, Énergie & méthodes — مرحبا. Journal of Notes, vol. 3, (2), p. 10‑20. Ignored Press (2020). https://doi.org/10.1000/note. https://example.test"
           }
         ],
         "unresolved": [],
@@ -6663,7 +6663,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "Doe, Jane (2020). Énergie & méthodes — مرحبا. Journal of Notes."
+            "text": "Doe, Jane (2020). Énergie & méthodes — مرحبا. Journal of Notes, vol. 3, (2), pp. 10–20. Ignored Press. https://doi.org/10.1000/note. https://example.test."
           }
         ],
         "unresolved": [],
@@ -6741,7 +6741,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "Doe, Jane (2020). Énergie & méthodes — مرحبا. Journal of Notes."
+            "text": "Doe, Jane (2020). Énergie & méthodes — مرحبا. Journal of Notes, vol. 3, (2), p. 10‑20. Ignored Press. https://doi.org/10.1000/note. https://example.test."
           }
         ],
         "unresolved": [],
@@ -7945,7 +7945,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Title., Journal. (2020)"
+            "text": "1. Jane Doe, Title. Journal. (2020)"
           }
         ],
         "unresolved": [],
@@ -8017,7 +8017,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Title., Journal. (2020)"
+            "text": "1. Jane Doe, Title. Journal. (2020)"
           }
         ],
         "unresolved": [],
@@ -12673,7 +12673,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Why?, Where! (2020)"
+            "text": "1. Jane Doe, Why? Where! (2020)"
           }
         ],
         "unresolved": [],
@@ -12737,7 +12737,7 @@
           {
             "id": "a",
             "label": "1",
-            "text": "1. Jane Doe, Why?, Where! (2020)"
+            "text": "1. Jane Doe, Why? Where! (2020)"
           }
         ],
         "unresolved": [],
@@ -26645,6 +26645,1294 @@
         "bibliography": [],
         "unresolved": [],
         "codes": ["unsupported-citation-feature"]
+      }
+    },
+    {
+      "name": "journal publication fields / numeric / en-US",
+      "style": "numeric",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Journal result",
+                  "issued": "2020",
+                  "containerTitle": "Journal of Tests",
+                  "volume": "12",
+                  "issue": "3",
+                  "page": "41-52",
+                  "doi": "10.1000/journal",
+                  "url": "https://example.org/journal"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Jane Doe, Journal result. Journal of Tests, 12(3): 41–52 (2020). https://doi.org/10.1000/journal. https://example.org/journal"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal publication fields / numeric / fr-FR",
+      "style": "numeric",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Journal result",
+                  "issued": "2020",
+                  "containerTitle": "Journal of Tests",
+                  "volume": "12",
+                  "issue": "3",
+                  "page": "41-52",
+                  "doi": "10.1000/journal",
+                  "url": "https://example.org/journal"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Jane Doe, Journal result. Journal of Tests, 12(3): 41‑52 (2020). https://doi.org/10.1000/journal. https://example.org/journal"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal publication fields / author-date / en-US",
+      "style": "author-date",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Journal result",
+                  "issued": "2020",
+                  "containerTitle": "Journal of Tests",
+                  "volume": "12",
+                  "issue": "3",
+                  "page": "41-52",
+                  "doi": "10.1000/journal",
+                  "url": "https://example.org/journal"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Doe, 2020)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Doe, Jane (2020). Journal result. Journal of Tests, 12(3): 41–52. https://doi.org/10.1000/journal. https://example.org/journal."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal publication fields / author-date / fr-FR",
+      "style": "author-date",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Journal result",
+                  "issued": "2020",
+                  "containerTitle": "Journal of Tests",
+                  "volume": "12",
+                  "issue": "3",
+                  "page": "41-52",
+                  "doi": "10.1000/journal",
+                  "url": "https://example.org/journal"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Doe, 2020)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Doe, Jane (2020). Journal result. Journal of Tests, 12(3): 41‑52. https://doi.org/10.1000/journal. https://example.org/journal."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "book publisher and URL / numeric / en-US",
+      "style": "numeric",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "book",
+                  "authors": ["Knuth, Donald"],
+                  "title": "The Art of Computer Programming",
+                  "issued": "1997",
+                  "volume": "1",
+                  "publisher": "Addison-Wesley",
+                  "url": "https://example.org/book"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Donald Knuth, The Art of Computer Programming. vol. 1. Addison-Wesley (1997). https://example.org/book"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "book publisher and URL / numeric / fr-FR",
+      "style": "numeric",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "book",
+                  "authors": ["Knuth, Donald"],
+                  "title": "The Art of Computer Programming",
+                  "issued": "1997",
+                  "volume": "1",
+                  "publisher": "Addison-Wesley",
+                  "url": "https://example.org/book"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Donald Knuth, The Art of Computer Programming. vol. 1. Addison-Wesley (1997). https://example.org/book"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "book publisher and URL / author-date / en-US",
+      "style": "author-date",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "book",
+                  "authors": ["Knuth, Donald"],
+                  "title": "The Art of Computer Programming",
+                  "issued": "1997",
+                  "volume": "1",
+                  "publisher": "Addison-Wesley",
+                  "url": "https://example.org/book"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Knuth, 1997)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Knuth, Donald (1997). The Art of Computer Programming. vol. 1. Addison-Wesley. https://example.org/book."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "book publisher and URL / author-date / fr-FR",
+      "style": "author-date",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "book",
+                  "authors": ["Knuth, Donald"],
+                  "title": "The Art of Computer Programming",
+                  "issued": "1997",
+                  "volume": "1",
+                  "publisher": "Addison-Wesley",
+                  "url": "https://example.org/book"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Knuth, 1997)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Knuth, Donald (1997). The Art of Computer Programming. vol. 1. Addison-Wesley. https://example.org/book."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "chapter publication fields / numeric / en-US",
+      "style": "numeric",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "chapter",
+                  "authors": ["Roe, Richard"],
+                  "title": "A chapter",
+                  "issued": "2021",
+                  "containerTitle": "Collected Tests",
+                  "page": "101-120",
+                  "publisher": "Example Press",
+                  "doi": "10.1000/chapter"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Richard Roe, A chapter. Collected Tests, pp. 101–120. Example Press (2021). https://doi.org/10.1000/chapter"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "chapter publication fields / numeric / fr-FR",
+      "style": "numeric",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "chapter",
+                  "authors": ["Roe, Richard"],
+                  "title": "A chapter",
+                  "issued": "2021",
+                  "containerTitle": "Collected Tests",
+                  "page": "101-120",
+                  "publisher": "Example Press",
+                  "doi": "10.1000/chapter"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Richard Roe, A chapter. Collected Tests, p. 101‑120. Example Press (2021). https://doi.org/10.1000/chapter"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "chapter publication fields / author-date / en-US",
+      "style": "author-date",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "chapter",
+                  "authors": ["Roe, Richard"],
+                  "title": "A chapter",
+                  "issued": "2021",
+                  "containerTitle": "Collected Tests",
+                  "page": "101-120",
+                  "publisher": "Example Press",
+                  "doi": "10.1000/chapter"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Roe, 2021)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Roe, Richard (2021). A chapter. Collected Tests, pp. 101–120. Example Press. https://doi.org/10.1000/chapter."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "chapter publication fields / author-date / fr-FR",
+      "style": "author-date",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "chapter",
+                  "authors": ["Roe, Richard"],
+                  "title": "A chapter",
+                  "issued": "2021",
+                  "containerTitle": "Collected Tests",
+                  "page": "101-120",
+                  "publisher": "Example Press",
+                  "doi": "10.1000/chapter"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Roe, 2021)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Roe, Richard (2021). A chapter. Collected Tests, p. 101‑120. Example Press. https://doi.org/10.1000/chapter."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal page without volume / numeric / en-US",
+      "style": "numeric",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Short result",
+                  "issued": "2020",
+                  "page": "8"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Jane Doe, Short result. 8 (2020)"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal page without volume / numeric / fr-FR",
+      "style": "numeric",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Short result",
+                  "issued": "2020",
+                  "page": "8"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["[1]"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "1. Jane Doe, Short result. 8 (2020)"
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal page without volume / author-date / en-US",
+      "style": "author-date",
+      "locale": "en-US",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Short result",
+                  "issued": "2020",
+                  "page": "8"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Doe, 2020)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Doe, Jane (2020). Short result. 8."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
+      }
+    },
+    {
+      "name": "journal page without volume / author-date / fr-FR",
+      "style": "author-date",
+      "locale": "fr-FR",
+      "document": {
+        "schemaVersion": 1,
+        "blocks": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "publisle:paragraph",
+            "schemaVersion": 1,
+            "data": {
+              "content": [
+                {
+                  "type": "text",
+                  "value": "See "
+                },
+                {
+                  "type": "strong",
+                  "children": [
+                    {
+                      "type": "citationReference",
+                      "items": [
+                        {
+                          "id": "a"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "value": ". "
+                }
+              ]
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "type": "publisle:bibliography",
+            "schemaVersion": 1,
+            "data": {
+              "entries": [
+                {
+                  "id": "a",
+                  "type": "article-journal",
+                  "authors": ["Doe, Jane"],
+                  "title": "Short result",
+                  "issued": "2020",
+                  "page": "8"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected": {
+        "classification": "rendered",
+        "capabilities": {
+          "role": "research-citations",
+          "schemaVersion": 1,
+          "fullCSL": false,
+          "plugins": false,
+          "styles": ["numeric", "author-date"],
+          "locales": ["en-US", "fr-FR"]
+        },
+        "citations": ["(Doe, 2020)"],
+        "bibliography": [
+          {
+            "id": "a",
+            "label": "1",
+            "text": "Doe, Jane (2020). Short result. 8."
+          }
+        ],
+        "unresolved": [],
+        "codes": []
       }
     }
   ]

@@ -99,6 +99,7 @@ export function readEntries(document: Document<Block<BlockType, unknown>>): {
       const issue = textOf(entry["issue"]);
       const page = textOf(entry["page"]);
       const publisher = textOf(entry["publisher"]);
+      const edition = textOf(entry["edition"]);
       const doi = textOf(entry["doi"]);
       const url = textOf(entry["url"]);
       const raw = textOf(entry["raw"]);
@@ -113,6 +114,7 @@ export function readEntries(document: Document<Block<BlockType, unknown>>): {
         ...(issue === undefined ? {} : { issue }),
         ...(page === undefined ? {} : { page }),
         ...(publisher === undefined ? {} : { publisher }),
+        ...(edition === undefined ? {} : { edition }),
         ...(doi === undefined ? {} : { doi }),
         ...(url === undefined ? {} : { url }),
         ...(raw === undefined ? {} : { raw }),

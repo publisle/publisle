@@ -16,9 +16,47 @@ export interface XmlElement {
 export type XmlNode =
   XmlElement | { readonly type: "text"; readonly value: string };
 
+// These styles deliberately share field coverage. Empty groups suppress their
+// punctuation, so partial records do not acquire empty issue/edition markers.
+const BIBLIOGRAPHY_DETAILS = `
+  <macro name="publication-details">
+    <group delimiter=". ">
+      <choose>
+        <if type="article-journal article-magazine article-newspaper" match="any">
+          <group delimiter=", ">
+            <text variable="container-title"/>
+            <group delimiter=": ">
+              <group><text variable="volume"/><text variable="issue" prefix="(" suffix=")"/></group>
+              <text variable="page"/>
+            </group>
+          </group>
+        </if>
+        <else>
+          <group delimiter=", ">
+            <text variable="container-title"/>
+            <group delimiter=" "><label variable="volume" form="short"/><text variable="volume"/></group>
+            <text variable="issue" prefix="(" suffix=")"/>
+            <group delimiter=" "><label variable="page" form="short"/><text variable="page"/></group>
+          </group>
+        </else>
+      </choose>
+      <group delimiter=", ">
+        <group delimiter=" "><number variable="edition" form="ordinal"/><label variable="edition" form="short"/></group>
+        <text variable="publisher"/>
+      </group>
+    </group>
+  </macro>
+  <macro name="identifiers">
+    <group delimiter=". ">
+      <text variable="DOI" prefix="https://doi.org/"/>
+      <text variable="URL"/>
+    </group>
+  </macro>`;
+
 const NUMERIC_STYLE = `<?xml version="1.0"?>
 <style class="in-text" version="1.0">
   <info><title>Publisle numeric</title><category citation-format="numeric"/></info>
+  ${BIBLIOGRAPHY_DETAILS}
   <citation collapse="citation-number">
     <sort><key variable="citation-number"/></sort>
     <layout prefix="[" suffix="]" delimiter=", ">
@@ -30,12 +68,9 @@ const NUMERIC_STYLE = `<?xml version="1.0"?>
       <text variable="citation-number" suffix=". "/>
       <names variable="author"><name form="long" and="text" delimiter=", "/><et-al term="et-al"/></names>
       <text variable="title" prefix=", "/>
-      <text variable="container-title" prefix=", "/>
-      <text variable="volume" prefix=" "/>
-      <text variable="issue" prefix="(" suffix=")"/>
-      <text variable="page" prefix=": "/>
+      <text macro="publication-details" prefix=". "/>
       <date variable="issued" prefix=" (" suffix=")"><date-part name="year"/></date>
-      <text variable="DOI" prefix=". https://doi.org/"/>
+      <text macro="identifiers" prefix=". "/>
     </layout>
   </bibliography>
 </style>`;
@@ -43,6 +78,7 @@ const NUMERIC_STYLE = `<?xml version="1.0"?>
 const AUTHOR_DATE_STYLE = `<?xml version="1.0"?>
 <style class="in-text" version="1.0">
   <info><title>Publisle author-date</title><category citation-format="author-date"/></info>
+  ${BIBLIOGRAPHY_DETAILS}
   <macro name="author-short">
     <names variable="author">
       <name form="short" and="symbol" delimiter=", "/>
@@ -63,7 +99,8 @@ const AUTHOR_DATE_STYLE = `<?xml version="1.0"?>
       <names variable="author"><name and="text" name-as-sort-order="first" delimiter=", "/></names>
       <date variable="issued" prefix=" (" suffix=")"><date-part name="year"/></date>
       <text variable="title" prefix=". "/>
-      <text variable="container-title" prefix=". "/>
+      <text macro="publication-details" prefix=". "/>
+      <text macro="identifiers" prefix=". "/>
     </layout>
   </bibliography>
 </style>`;
