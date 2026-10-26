@@ -11,7 +11,7 @@ UPLOAD="/var/tmp/publisle-deploy-$RELEASE_SHA"
 # identity cannot race privileged activation by rewriting the upload directory.
 install -d -o root -g root -m 0755 /var/lib/publisle-releases
 STAGE=$(mktemp -d "/var/lib/publisle-releases/$RELEASE_SHA.XXXXXX")
-cp -a --no-dereference "$UPLOAD/source" "$UPLOAD/image.tar.gz" "$STAGE/"
+cp -a --no-dereference "$UPLOAD/source" "$UPLOAD/image.tar.gz" "$UPLOAD/latex-image.tar.gz" "$STAGE/"
 [[ -z $(find "$STAGE" ! -type f ! -type d -print -quit) ]]
 command -v java >/dev/null
 command -v pdftotext >/dev/null
@@ -20,9 +20,9 @@ RUNTIME=(--setenv=HOME=/var/lib/publisle-runtime --setenv="XDG_RUNTIME_DIR=/run/
 # Runtime validation may write its outputs and dependencies, but it must never
 # replace source files that root later installs into the live service.
 chown -R root:root "$STAGE"
-chown root:publisle "$STAGE" "$STAGE/image.tar.gz"
+chown root:publisle "$STAGE" "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
 chmod 750 "$STAGE"
-chmod 640 "$STAGE/image.tar.gz"
+chmod 640 "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
 chmod -R go-w "$STAGE/source"
 VALIDATION="$STAGE/validation"
 install -d -o publisle -g publisle -m 0750 "$VALIDATION"
@@ -50,7 +50,12 @@ JS
 bounded load /usr/bin/docker load -i "$STAGE/image.tar.gz"
 IMAGE=$(bounded resolve /usr/bin/docker image inspect --format '{{.Id}}' "$ARCHIVE_TAG")
 [[ "$IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]]
-rm -f "$STAGE/image.tar.gz"
+# The LaTeX archive is part of the same private release snapshot. Loading the
+# uploaded file directly would permit it to change after root's validation.
+bounded load-latex /usr/bin/docker load -i "$STAGE/latex-image.tar.gz"
+LATEX_IMAGE=$(bounded resolve-latex /usr/bin/docker image inspect --format '{{.Id}}' "publisle-pdf-worker:$RELEASE_SHA")
+[[ "$LATEX_IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]]
+rm -f "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
 # Validators live in the isolated staging tree, not the production API install.
 bounded dependencies /usr/bin/env -C "$STAGE/source/deploy/vps/qa" /usr/bin/npm ci --ignore-scripts --no-audit --no-fund
 ln -s deploy/vps/qa/node_modules "$STAGE/source/node_modules"

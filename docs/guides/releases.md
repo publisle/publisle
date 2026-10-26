@@ -18,6 +18,12 @@ versions. Research pins an exact external native compiler version published from
    the candidate within 0.5 CPU / 512 MiB with no swap, checks health and engine
    defaults, and restores the previous API configuration on failure.
 
+The activation entry point snapshots and loads both native and LaTeX worker
+archives from the same release. Reinstall the reviewed root-owned
+`deploy/vps/activate-release.sh` when that entry point changes. LaTeX activation
+still requires its matching resource-budget verification report and operator
+image pin; staging an image alone does not update the live LaTeX worker.
+
 PR checks cover packed declarations, dependency ranges, isolated Core and Research
 consumers, the Fourier showcase, and Research installs on Linux, macOS and Windows.
 The Rust repository builds and smoke-tests all five native platforms. The version PR
