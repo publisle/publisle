@@ -298,8 +298,20 @@ export function renderLatexArticle(
               .join(" & ") + " \\\\",
         )
         .join("\n");
+      const columns = Array.from({ length: width }, (_, index) => {
+        const align = block.align?.[index];
+        const command =
+          align === "left"
+            ? "raggedright"
+            : align === "center"
+              ? "centering"
+              : align === "right"
+                ? "raggedleft"
+                : undefined;
+        return command ? `>{\\${command}\\arraybackslash}X` : "X";
+      }).join("");
       target.push(
-        `\\begin{table}[!htbp]\n\\caption{${take(block.caption ?? [])}}${label}\n\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}\\begin{tabularx}{\\columnwidth}{${"X".repeat(width)}}\n\\hline\n${rows}\n\\hline\n\\end{tabularx}\n\\end{table}`,
+        `\\begin{table}[!htbp]\n\\caption{${take(block.caption ?? [])}}${label}\n\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}\\begin{tabularx}{\\columnwidth}{${columns}}\n\\hline\n${rows}\n\\hline\n\\end{tabularx}\n\\end{table}`,
       );
     } else if (block.kind === "list") {
       const renderList = (
