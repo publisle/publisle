@@ -1,5 +1,14 @@
 # @publisle/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+  - @publisle/blocks-core@0.2.0
+  - @publisle/contracts@0.2.0
+  - @publisle/markdown@0.1.4
+
 ## 0.3.0
 
 ### Minor Changes

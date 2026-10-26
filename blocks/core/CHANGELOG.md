@@ -1,5 +1,20 @@
 # @publisle/blocks-core
 
+## 0.2.0
+
+### Minor Changes
+
+- 5a07a24: Preserve volume, issue, pages, publisher, edition, DOI and URL in the built-in
+  numeric and author-date bibliographies. Carry optional edition values through
+  bibliography validation, article projection, BibTeX and CSL-JSON so native PDF
+  exports receive the full resolved reference text.
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+  - @publisle/contracts@0.2.0
+  - @publisle/block-sdk@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes

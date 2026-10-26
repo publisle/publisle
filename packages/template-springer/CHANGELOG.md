@@ -1,5 +1,14 @@
 # @publisle/template-springer
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+- Updated dependencies [7073b64]
+- Updated dependencies [00c6adf]
+  - @publisle/template-sdk@0.2.0
+
 ## 0.1.3
 
 ### Patch Changes

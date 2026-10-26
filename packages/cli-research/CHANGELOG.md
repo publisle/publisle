@@ -1,5 +1,23 @@
 # @publisle/cli-research
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+- Updated dependencies [7073b64]
+- Updated dependencies [2db5c79]
+- Updated dependencies [00c6adf]
+  - @publisle/research@0.5.0
+  - @publisle/template-sdk@0.2.0
+  - @publisle/template-acm@0.1.4
+  - @publisle/template-article@0.1.4
+  - @publisle/template-elsevier@0.1.4
+  - @publisle/template-ieee@0.1.4
+  - @publisle/template-springer@0.1.4
+  - @publisle/cli@0.3.1
+  - @publisle/markdown@0.1.4
+
 ## 0.2.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "release-151ad27d83ee03c0",
+  "id": "release-d9e20a5eb7598a97",
   "versions": {
     "@publisle/adapter-astro": "0.2.2",
     "@publisle/adapter-core": "0.2.3",
@@ -8,30 +8,100 @@
     "@publisle/adapter-react": "0.1.3",
     "@publisle/adapter-svelte": "0.1.3",
     "@publisle/adapter-vue": "0.1.3",
-    "@publisle/block-sdk": "0.1.3",
-    "@publisle/cli": "0.3.0",
-    "@publisle/cli-research": "0.2.3",
-    "@publisle/contracts": "0.1.3",
+    "@publisle/block-sdk": "0.1.4",
+    "@publisle/cli": "0.3.1",
+    "@publisle/cli-research": "0.2.4",
+    "@publisle/contracts": "0.2.0",
     "@publisle/core": "0.1.3",
-    "@publisle/markdown": "0.1.3",
-    "@publisle/playground": "0.2.5",
+    "@publisle/markdown": "0.1.4",
+    "@publisle/playground": "0.2.6",
     "@publisle/profiles": "0.1.3",
-    "@publisle/research": "0.4.1",
+    "@publisle/research": "0.5.0",
     "@publisle/schema": "0.1.2",
-    "@publisle/template-acm": "0.1.3",
-    "@publisle/template-article": "0.1.3",
-    "@publisle/template-elsevier": "0.1.3",
-    "@publisle/template-ieee": "0.1.3",
-    "@publisle/template-sdk": "0.1.6",
-    "@publisle/template-springer": "0.1.3",
-    "@publisle/blocks-core": "0.1.3",
-    "@publisle/blocks-technical": "0.1.3"
+    "@publisle/template-acm": "0.1.4",
+    "@publisle/template-article": "0.1.4",
+    "@publisle/template-elsevier": "0.1.4",
+    "@publisle/template-ieee": "0.1.4",
+    "@publisle/template-sdk": "0.2.0",
+    "@publisle/template-springer": "0.1.4",
+    "@publisle/blocks-core": "0.2.0",
+    "@publisle/blocks-technical": "0.1.4"
   },
   "releases": [
     {
+      "name": "@publisle/block-sdk",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/cli",
+      "oldVersion": "0.3.0",
+      "version": "0.3.1"
+    },
+    {
+      "name": "@publisle/cli-research",
+      "oldVersion": "0.2.3",
+      "version": "0.2.4"
+    },
+    {
+      "name": "@publisle/contracts",
+      "oldVersion": "0.1.3",
+      "version": "0.2.0"
+    },
+    {
+      "name": "@publisle/markdown",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/playground",
+      "oldVersion": "0.2.5",
+      "version": "0.2.6"
+    },
+    {
       "name": "@publisle/research",
-      "oldVersion": "0.4.0",
-      "version": "0.4.1"
+      "oldVersion": "0.4.1",
+      "version": "0.5.0"
+    },
+    {
+      "name": "@publisle/template-acm",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/template-article",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/template-elsevier",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/template-ieee",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/template-sdk",
+      "oldVersion": "0.1.6",
+      "version": "0.2.0"
+    },
+    {
+      "name": "@publisle/template-springer",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
+    },
+    {
+      "name": "@publisle/blocks-core",
+      "oldVersion": "0.1.3",
+      "version": "0.2.0"
+    },
+    {
+      "name": "@publisle/blocks-technical",
+      "oldVersion": "0.1.3",
+      "version": "0.1.4"
     }
   ]
 }

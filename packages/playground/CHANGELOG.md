@@ -1,5 +1,13 @@
 # @publisle/playground
 
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+  - @publisle/blocks-core@0.2.0
+  - @publisle/markdown@0.1.4
+
 ## 0.2.5
 
 ### Patch Changes
