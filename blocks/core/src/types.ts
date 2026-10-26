@@ -144,6 +144,7 @@ export interface BibliographyEntry {
   readonly issue?: string;
   readonly page?: string;
   readonly publisher?: string;
+  readonly edition?: string;
   readonly doi?: string;
   readonly url?: string;
   /** Opaque source kept exactly. Structured fields do not rewrite it. */

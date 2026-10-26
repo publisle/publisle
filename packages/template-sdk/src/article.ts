@@ -49,6 +49,7 @@ export interface CitationEntry {
   readonly issue?: string;
   readonly page?: string;
   readonly publisher?: string;
+  readonly edition?: string;
   readonly doi?: string;
   readonly url?: string;
   readonly raw?: string;

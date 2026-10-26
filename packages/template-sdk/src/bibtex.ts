@@ -168,6 +168,7 @@ export function parseBibtex(source: string): CitationEntry[] {
     const issue = fields.get("number");
     const page = fields.get("pages");
     const publisher = fields.get("publisher");
+    const edition = fields.get("edition");
     const doi = fields.get("doi");
     const url = fields.get("url");
     const raw = source.slice(at, entryEnd + 1);
@@ -183,6 +184,7 @@ export function parseBibtex(source: string): CitationEntry[] {
       ...(issue === undefined ? {} : { issue }),
       ...(page === undefined ? {} : { page }),
       ...(publisher === undefined ? {} : { publisher }),
+      ...(edition === undefined ? {} : { edition }),
       ...(doi === undefined ? {} : { doi }),
       ...(url === undefined ? {} : { url }),
     });
@@ -205,6 +207,7 @@ function structured(entry: CitationEntry): boolean {
     entry.issue !== undefined ||
     entry.page !== undefined ||
     entry.publisher !== undefined ||
+    entry.edition !== undefined ||
     entry.doi !== undefined ||
     entry.url !== undefined
   );
@@ -239,6 +242,9 @@ export function toBibtex(entries: readonly CitationEntry[]): string {
         entry.publisher === undefined
           ? undefined
           : `  publisher = ${brace(entry.publisher)}`,
+        entry.edition === undefined
+          ? undefined
+          : `  edition = ${brace(entry.edition)}`,
         entry.doi === undefined ? undefined : `  doi = ${brace(entry.doi)}`,
         entry.url === undefined ? undefined : `  url = ${brace(entry.url)}`,
       ].filter((field): field is string => field !== undefined);
@@ -275,6 +281,7 @@ export function toCslJson(entries: readonly CitationEntry[]): string {
       ...(entry.issue === undefined ? {} : { issue: entry.issue }),
       ...(entry.page === undefined ? {} : { page: entry.page }),
       ...(entry.publisher === undefined ? {} : { publisher: entry.publisher }),
+      ...(entry.edition === undefined ? {} : { edition: entry.edition }),
       ...(entry.doi === undefined ? {} : { DOI: entry.doi }),
       ...(entry.url === undefined ? {} : { URL: entry.url }),
     })),

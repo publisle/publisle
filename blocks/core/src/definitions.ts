@@ -455,6 +455,7 @@ export const bibliographyDefinition = definePortableBlock({
           const issue = optional("issue");
           const page = optional("page");
           const publisher = optional("publisher");
+          const edition = optional("edition");
           const doi = optional("doi");
           const url = optional("url");
           const raw = optional("raw");
@@ -469,6 +470,7 @@ export const bibliographyDefinition = definePortableBlock({
             ...(issue === undefined ? {} : { issue }),
             ...(page === undefined ? {} : { page }),
             ...(publisher === undefined ? {} : { publisher }),
+            ...(edition === undefined ? {} : { edition }),
             ...(doi === undefined ? {} : { doi }),
             ...(url === undefined ? {} : { url }),
             ...(raw === undefined ? {} : { raw }),
