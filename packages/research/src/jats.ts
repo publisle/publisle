@@ -1,4 +1,4 @@
-import type { ArticleInline } from "./article.ts";
+import type { ArticleInline, ArticleListItem } from "./article.ts";
 import type { ResolvedDocument } from "./resolve.ts";
 
 function xml(value: string): string {
@@ -7,6 +7,26 @@ function xml(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function jatsList(
+  ordered: boolean,
+  items: readonly (readonly ArticleInline[] | ArticleListItem)[],
+  take: (inlines: readonly ArticleInline[]) => string,
+): string {
+  const listItem = (
+    item: readonly ArticleInline[] | ArticleListItem,
+  ): string => {
+    const content = "content" in item ? item.content : item;
+    const children = "content" in item ? (item.children ?? []) : [];
+    const nested = children
+      .map((child) => jatsList(child.ordered, child.items, take))
+      .join("");
+    return `<list-item><p>${take(content)}</p>${nested}</list-item>`;
+  };
+  return `<list list-type="${ordered ? "order" : "bullet"}">${items
+    .map(listItem)
+    .join("")}</list>`;
 }
 
 function xmlId(value: string): string {
@@ -111,11 +131,7 @@ export function toJats(resolved: ResolvedDocument): string {
     } else if (block.kind === "paragraph")
       target.push(`<p>${take(block.inlines)}</p>`);
     else if (block.kind === "list") {
-      target.push(
-        `<list list-type="${block.ordered ? "order" : "bullet"}">${block.items
-          .map((item) => `<list-item><p>${take(item)}</p></list-item>`)
-          .join("")}</list>`,
-      );
+      target.push(jatsList(block.ordered, block.items, take));
     } else if (block.kind === "quote") {
       target.push(
         `<disp-quote>${block.paragraphs.map((paragraph) => `<p>${take(paragraph)}</p>`).join("")}</disp-quote>`,

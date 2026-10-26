@@ -80,7 +80,19 @@ function citationNoteIndices(article: Article): number[] {
       visit(block.inlines);
     else if (block.kind === "quote")
       for (const paragraph of block.paragraphs) visit(paragraph);
-    else if (block.kind === "list") for (const item of block.items) visit(item);
+    else if (block.kind === "list")
+      for (const item of block.items) {
+        if ("content" in item) {
+          visit(item.content);
+          for (const child of item.children ?? [])
+            for (const nested of child.items) {
+              if ("content" in nested) visit(nested.content);
+              else visit(nested);
+            }
+        } else {
+          visit(item);
+        }
+      }
     else if (block.kind === "figure") visit(block.caption);
     else if (block.kind === "table") {
       if (block.caption) visit(block.caption);

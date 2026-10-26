@@ -165,7 +165,18 @@ function visitInlines(
       visit(block.inlines);
       break;
     case "list":
-      block.items.forEach(visit);
+      block.items.forEach((item) => {
+        if ("content" in item) {
+          visit(item.content);
+          for (const child of item.children ?? [])
+            for (const nested of child.items) {
+              if ("content" in nested) visit(nested.content);
+              else visit(nested);
+            }
+        } else {
+          visit(item);
+        }
+      });
       break;
     case "quote":
       block.paragraphs.forEach(visit);

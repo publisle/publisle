@@ -1,4 +1,9 @@
-import type { Article, ArticleInline, CitationEntry } from "./article.ts";
+import type {
+  Article,
+  ArticleInline,
+  ArticleListItem,
+  CitationEntry,
+} from "./article.ts";
 import type { LatexEngine, SourcePackage, TemplateContext } from "./index.ts";
 import { placeins } from "./placeins.ts";
 import { toBibtex } from "./bibtex.ts";
@@ -296,11 +301,39 @@ export function renderLatexArticle(
       target.push(
         `\\begin{table}[!htbp]\n\\caption{${take(block.caption ?? [])}}${label}\n\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}\\begin{tabularx}{\\columnwidth}{${"X".repeat(width)}}\n\\hline\n${rows}\n\\hline\n\\end{tabularx}\n\\end{table}`,
       );
-    } else if (block.kind === "list")
-      target.push(
-        `\\begin{${block.ordered ? "enumerate" : "itemize"}}\n${block.items.map((item) => `\\item ${take(item)}`).join("\n")}\n\\end{${block.ordered ? "enumerate" : "itemize"}}`,
-      );
-    else if (block.kind === "quote")
+    } else if (block.kind === "list") {
+      const renderList = (
+        list: {
+          readonly ordered: boolean;
+          readonly start?: number;
+          readonly items: readonly (
+            readonly ArticleInline[] | ArticleListItem
+          )[];
+        },
+        depth: number,
+      ): string => {
+        const environment = list.ordered ? "enumerate" : "itemize";
+        const counter = `enum${"i".repeat(Math.min(depth + 1, 4))}`;
+        const opening =
+          list.ordered && typeof list.start === "number" && list.start !== 1
+            ? `\\begin{enumerate}\\setcounter{${counter}}{${String(list.start - 1)}}\n`
+            : `\\begin{${environment}}\n`;
+        const items = list.items
+          .map((item) => {
+            const content = "content" in item ? take(item.content) : take(item);
+            const nested =
+              "content" in item
+                ? (item.children ?? [])
+                    .map((child) => renderList(child, depth + 1))
+                    .join("")
+                : "";
+            return `\\item ${content}${nested}`;
+          })
+          .join("\n");
+        return `${opening}${items}\n\\end{${environment}}`;
+      };
+      target.push(renderList(block, 0));
+    } else if (block.kind === "quote")
       target.push(
         `\\begin{quote}${block.paragraphs.map(take).join("\n\n")}\\end{quote}`,
       );

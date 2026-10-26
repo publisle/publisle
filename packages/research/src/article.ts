@@ -5,6 +5,8 @@ import type {
   Article,
   ArticleBlock,
   ArticleInline,
+  ArticleListItem,
+  ArticleList,
   ArticleMark,
   CitationCluster,
   CitationRef,
@@ -15,6 +17,8 @@ export type {
   Article,
   ArticleBlock,
   ArticleInline,
+  ArticleListItem,
+  ArticleList,
   CitationCluster,
   CitationRef,
   CitationEntry,
@@ -313,13 +317,44 @@ export function projectArticle(
       continue;
     }
     if (block.type === "publisle:list" && Array.isArray(data["items"])) {
+      const projectItem = (
+        item: unknown,
+      ): ArticleListItem | readonly ArticleInline[] => {
+        const children = isRecord(item) ? item["children"] : [];
+        const content: ArticleInline[] = [];
+        const nested: ArticleList[] = [];
+        for (const node of Array.isArray(children) ? children : []) {
+          if (!isRecord(node)) continue;
+          if (node["type"] === "list") {
+            const child = projectList(node);
+            if (child.items.length) nested.push(child);
+            else continue;
+          } else if (node["type"] === "paragraph") {
+            content.push(...inlineList(node["content"], losses));
+          } else {
+            content.push(...flowParagraphs([node], losses).flat());
+          }
+        }
+        return nested.length ? { content, children: nested } : content;
+      };
+      const projectList = (node: unknown): ArticleList => {
+        const data = isRecord(node) ? node : {};
+        return {
+          ordered: data["ordered"] === true,
+          ...(typeof data["start"] === "number"
+            ? { start: data["start"] }
+            : {}),
+          items: (Array.isArray(data["items"]) ? data["items"] : []).map(
+            projectItem,
+          ),
+        };
+      };
+      const projected = projectList(data);
       blocks.push({
         kind: "list",
-        ordered: data["ordered"] === true,
-        items: data["items"].map((item: unknown) => {
-          const children = isRecord(item) ? item["children"] : [];
-          return flowParagraphs(children, losses).flat();
-        }),
+        ordered: projected.ordered,
+        ...(projected.start === undefined ? {} : { start: projected.start }),
+        items: projected.items,
         abstract,
       });
       continue;
@@ -333,7 +368,14 @@ export function projectArticle(
       continue;
     }
     if (block.type === "publisle:code" && typeof data["value"] === "string") {
-      blocks.push({ kind: "code", value: data["value"], abstract });
+      blocks.push({
+        kind: "code",
+        value: data["value"],
+        ...(typeof data["language"] === "string"
+          ? { language: data["language"] }
+          : {}),
+        abstract,
+      });
       continue;
     }
     if (block.type === "publisle:math" && typeof data["value"] === "string") {
@@ -347,12 +389,19 @@ export function projectArticle(
       continue;
     }
     if (block.type === "publisle:table" && Array.isArray(data["rows"])) {
+      const aligned = (value: unknown) =>
+        value === "left" || value === "right" || value === "center"
+          ? value
+          : null;
       blocks.push({
         kind: "table",
         ...labeled,
         caption: flowParagraphs(data["caption"], losses).flat(),
         headerRows:
           typeof data["headerRows"] === "number" ? data["headerRows"] : 1,
+        ...(Array.isArray(data["align"])
+          ? { align: data["align"].map(aligned) }
+          : {}),
         rows: data["rows"].map((row: unknown) =>
           Array.isArray(row) ? row.map((cell) => inlineList(cell, losses)) : [],
         ),
@@ -454,6 +503,9 @@ export function projectArticle(
     ...(document.metadata?.direction === undefined
       ? {}
       : { direction: document.metadata.direction }),
+    ...(document.metadata?.publishedAt === undefined
+      ? {}
+      : { date: document.metadata.publishedAt }),
     blocks,
     entries: read.entries,
     losses,
@@ -486,7 +538,19 @@ export function citationClusters(article: Article): CitationCluster[] {
   for (const block of article.blocks) {
     if (block.kind === "heading" || block.kind === "paragraph")
       visit(block.inlines);
-    else if (block.kind === "list") for (const item of block.items) visit(item);
+    else if (block.kind === "list")
+      for (const item of block.items) {
+        if ("content" in item) {
+          visit(item.content);
+          for (const child of item.children ?? [])
+            for (const nested of child.items) {
+              if ("content" in nested) visit(nested.content);
+              else visit(nested);
+            }
+        } else {
+          visit(item);
+        }
+      }
     else if (block.kind === "quote")
       for (const paragraph of block.paragraphs) visit(paragraph);
     else if (block.kind === "table") {
