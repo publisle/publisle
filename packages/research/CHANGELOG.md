@@ -1,5 +1,37 @@
 # @publisle/research
 
+## 0.5.0
+
+### Minor Changes
+
+- 00c6adf: Native exports carry authored list structure and table styling: ordered
+  list start ordinals, nested sub-lists (no longer flattened with a loss),
+  code block languages, per-column table alignment, and the publication
+  date rendered in the native front matter. Template-sdk gains the
+  `ArticleListItem`/`ArticleList` types and optional `start`, `language`,
+  `align` and `date` fields.
+
+### Patch Changes
+
+- 5a07a24: Preserve volume, issue, pages, publisher, edition, DOI and URL in the built-in
+  numeric and author-date bibliographies. Carry optional edition values through
+  bibliography validation, article projection, BibTeX and CSL-JSON so native PDF
+  exports receive the full resolved reference text.
+- 2db5c79: Pin the native PDF compiler to 0.6.2 on all five platforms, including heading
+  bookmarks, authored list and table structure, front-matter dates, framed code
+  blocks and corrected continuation spacing. Keep the hosted worker runtime on
+  the same exact native version.
+
+  Normalize unspecified Markdown table columns to explicit left alignment before
+  sending native input, preserving authored center and right alignment.
+
+- Updated dependencies [5a07a24]
+- Updated dependencies [7073b64]
+- Updated dependencies [00c6adf]
+  - @publisle/template-sdk@0.2.0
+  - @publisle/contracts@0.2.0
+  - @publisle/template-article@0.1.4
+
 ## 0.4.1
 
 ### Patch Changes

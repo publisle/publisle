@@ -1,5 +1,14 @@
 # @publisle/blocks-technical
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [5a07a24]
+  - @publisle/blocks-core@0.2.0
+  - @publisle/contracts@0.2.0
+  - @publisle/block-sdk@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @publisle/template-sdk
 
+## 0.2.0
+
+### Minor Changes
+
+- 5a07a24: Preserve volume, issue, pages, publisher, edition, DOI and URL in the built-in
+  numeric and author-date bibliographies. Carry optional edition values through
+  bibliography validation, article projection, BibTeX and CSL-JSON so native PDF
+  exports receive the full resolved reference text.
+- 00c6adf: Native exports carry authored list structure and table styling: ordered
+  list start ordinals, nested sub-lists (no longer flattened with a loss),
+  code block languages, per-column table alignment, and the publication
+  date rendered in the native front matter. Template-sdk gains the
+  `ArticleListItem`/`ArticleList` types and optional `start`, `language`,
+  `align` and `date` fields.
+
+### Patch Changes
+
+- 7073b64: Honor authored left, center and right table-column alignments in the shared
+  LaTeX renderer. Missing and null alignments retain the existing column default.
+
 ## 0.1.6
 
 ### Patch Changes
