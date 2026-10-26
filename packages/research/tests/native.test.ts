@@ -68,3 +68,20 @@ it("preserves the requested native PDF/UA flavour without downgrading", () => {
     createNativePdfPackage(document, { fonts, pdfUa: false }).input.pdfStandard,
   ).toBeNull();
 });
+
+it("defaults unspecified Markdown table columns to native left alignment", () => {
+  const document = parse(
+    "---\ntitle: Table\nauthors:\n  - name: Ada\n---\n\n| Default | Center | Right |\n| --- | :---: | ---: |\n| A | B | C |\n",
+  );
+  const original = structuredClone(document);
+  const result = createNativePdfPackage(document, { fonts });
+  const table = result.input.article.blocks.find(
+    (block) => block.kind === "table",
+  );
+  expect(table?.kind === "table" && table.align).toEqual([
+    "left",
+    "center",
+    "right",
+  ]);
+  expect(document).toEqual(original);
+});

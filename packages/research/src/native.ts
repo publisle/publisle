@@ -97,6 +97,14 @@ export function createNativePdfPackage(
   if (options.fonts.length === 0 || options.fonts.length > 16)
     throw new Error("Native PDF export requires one to sixteen pinned fonts.");
   const article = structuredClone(resolved.article);
+  // Markdown leaves unspecified column alignments empty. JSON arrays encode
+  // those entries as null, while the native schema requires explicit values.
+  for (const block of article.blocks) {
+    if (block.kind === "table" && block.align)
+      Object.assign(block, {
+        align: block.align.map((alignment) => alignment ?? "left"),
+      });
+  }
   // CSL resolves cited footnotes at their first reference, rather than at the
   // definition's physical position. Bind results before the native layout runs.
   const notes = new Map(
