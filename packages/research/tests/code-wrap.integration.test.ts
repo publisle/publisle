@@ -28,8 +28,7 @@ ${line}
 `);
   if (!parsed.document) throw new Error("Invalid long-code fixture");
   for (const engine of ["lualatex", "pdflatex"] as const) {
-    // Tagging stays off here. listings 1.11b aborts a UA-2 compile with a
-    // tagpdf paragraph-hook error, which the PDF/UA gate covers separately.
+    // Untagged engines. The PDF/UA suite covers the tagged listing hooks.
     const source = createLatexPackage(parsed.document, {
       template,
       engine,

@@ -14,7 +14,7 @@ async function compile(response: Response) {
     vi.fn(() => Promise.resolve(response)),
   );
   const { compilePdf } = await import("../src/lib/api.ts");
-  return compilePdf({ markdown: "token00" });
+  return compilePdf({ template: "article", markdown: "token00" });
 }
 
 describe("PDF compile errors", () => {

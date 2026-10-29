@@ -8,6 +8,40 @@ import type { LatexEngine, SourcePackage, TemplateContext } from "./index.ts";
 import { placeins } from "./placeins.ts";
 import { toBibtex } from "./bibtex.ts";
 import { latexKey, latexText } from "./escape.ts";
+
+// listings 1.11b opens and closes paragraph hooks unevenly, and a blank line
+// nests one codeline inside another. The block hooks come from the frozen
+// TeX Live 2025 tagging code (display blockenv, not the later latex-dev
+// "std" template). A space keeps a blank line visually empty without nesting.
+const listingsTagging = String.raw`\ExplSyntaxOn
+\DeclareInstance{blockenv}{lstlisting}{display}
+{
+  name                   = lstlisting,
+  tag-name               = verbatim,
+  tag-attr-class         = ,
+  tagging-recipe         = standard,
+  tagging-suppress-paras = true,
+  inner-level-counter    = ,
+  increment-level        = false,
+  setup-code             = ,
+  block-instance         = verbatimblock,
+  inner-instance         = ,
+  final-code             = \tl_set:Nn \l__tag_para_tag_tl {codeline} \ignorespaces,
+}
+\ExplSyntaxOff
+\makeatletter
+\lst@AddToHook{PreInit}{\UseInstance{blockenv}{lstlisting}{}}
+\lst@AddToHook{DeInit}{\endblockenv}
+\makeatother
+`;
+function listingSource(value: string, tagged: boolean): string {
+  if (!tagged) return value;
+  const withoutFinalNewline = value.endsWith("\n") ? value.slice(0, -1) : value;
+  return withoutFinalNewline
+    .split("\n")
+    .map((line) => (line.trim() === "" ? " " : line))
+    .join("\n");
+}
 type WritingDirection = "ltr" | "rtl" | "auto";
 export interface LatexProfile {
   /** Only enable after validating the class against the pinned compiler. */
@@ -359,7 +393,7 @@ export function renderLatexArticle(
       // breaklines keeps a long physical line inside the text block. verbatim
       // ships the overflow past the page edge, where Poppler drops it.
       target.push(
-        `\\begin{lstlisting}[breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,basicstyle=\\ttfamily\\small,showstringspaces=false]\n${block.value}\n\\end{lstlisting}`,
+        `\\begin{lstlisting}[breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,basicstyle=\\ttfamily\\small,showstringspaces=false]\n${listingSource(block.value, pdfStandard !== undefined)}\n\\end{lstlisting}`,
       );
     }
   }
@@ -417,7 +451,7 @@ ${unicodePreamble}${needsColor ? "\\usepackage{xcolor}\n" : ""}\\usepackage{amsm
 \\usepackage{placeins}
 \\usepackage[normalem]{ulem}
 \\usepackage{hyperref}
-\\hypersetup{hidelinks}
+${pdfStandard ? listingsTagging : ""}\\hypersetup{hidelinks}
 \\hypersetup{pdftitle={${latexText(article.title ?? "Untitled")}},pdfauthor={${latexText(article.authors.join(", "))}}}
 ${profile.author ? profile.author(article, text) : `\\title{${text(article.title ?? "Untitled")}}\n\\author{${authors}${affiliations}}`}
 \\date{}

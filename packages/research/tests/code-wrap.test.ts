@@ -35,7 +35,21 @@ describe("LaTeX code listings", () => {
       `${listing}\nkeep  spaces\n\nnext\n\\end{lstlisting}`,
     );
     expect(tex).not.toContain("\\begin{verbatim}");
+    expect(tex).not.toContain("\\DeclareInstance{blockenv}{lstlisting}");
     expect(output.requirements).toContain("listings.sty");
+  });
+
+  it("tags listings and keeps blank lines from nesting", () => {
+    const output = template.render(article("keep\n\n  \nnext"), {
+      ...context("lualatex"),
+      pdfUa: "ua-2",
+    });
+    const tex = output.files["manuscript.tex"] ?? "";
+    expect(tex).toContain("\\DeclareInstance{blockenv}{lstlisting}{display}");
+    expect(tex).toContain("\\lst@AddToHook{PreInit}");
+    expect(tex).toContain(
+      "\\begin{lstlisting}[breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,basicstyle=\\ttfamily\\small,showstringspaces=false]\nkeep\n \n \nnext\n\\end{lstlisting}",
+    );
   });
 
   it("rejects an lstlisting terminator and pdfLaTeX Unicode", () => {
