@@ -625,46 +625,69 @@ test("native failure retries once in the legacy image and retains diagnostics", 
   const nativeImage = `sha256:${"a".repeat(64)}`;
   const legacyImage = `sha256:${"b".repeat(64)}`;
   const calls = [];
-  const result = await compileJob(
-    validateRequest({ markdown: "hello", engine: "rust" }, ["article"]),
-    new AbortController().signal,
-    {
-      nativeImage,
-      image: legacyImage,
-      nativeTemplates: ["article"],
-      runWorker: async (image, _directory, action) => {
-        calls.push({ image, action });
-        if (image === nativeImage)
-          throw Object.assign(new Error("unsupported math"), {
-            code: "compilation-failed",
-            diagnostics: [
-              {
-                code: "unsupported-math",
-                message: "Unknown command",
-                blockIndex: 2,
-              },
-            ],
-          });
-        if (action === "prepare")
+  const logs = [];
+  const write = console.log;
+  console.log = (...args) => {
+    logs.push(args.map(String).join(" "));
+    write(...args);
+  };
+  let result;
+  try {
+    result = await compileJob(
+      validateRequest({ markdown: "hello", engine: "rust" }, ["article"]),
+      new AbortController().signal,
+      {
+        nativeImage,
+        image: legacyImage,
+        nativeTemplates: ["article"],
+        runWorker: async (image, _directory, action) => {
+          calls.push({ image, action });
+          if (image === nativeImage)
+            throw Object.assign(new Error("unsupported math"), {
+              code: "compilation-failed",
+              diagnostics: [
+                {
+                  code: "unsupported-math",
+                  message: "Unknown command",
+                  blockIndex: 2,
+                },
+              ],
+            });
+          if (action === "prepare")
+            return Buffer.from(
+              JSON.stringify({
+                document: { schemaVersion: 1, blocks: [] },
+                sources: [],
+              }),
+            );
           return Buffer.from(
-            JSON.stringify({
-              document: { schemaVersion: 1, blocks: [] },
-              sources: [],
-            }),
+            JSON.stringify({ ok: true, diagnostics: [] }) + "\n%PDF-test",
           );
-        return Buffer.from(
-          JSON.stringify({ ok: true, diagnostics: [] }) + "\n%PDF-test",
-        );
+        },
       },
-    },
-  );
-  assert.deepEqual(calls, [
-    { image: nativeImage, action: "session" },
-    { image: legacyImage, action: "prepare" },
-    { image: legacyImage, action: "compile" },
-  ]);
-  assert.equal(result.diagnostics[0].blockIndex, 2);
-  assert.equal(result.diagnostics[1].code, "native-engine-fallback");
+    );
+    assert.deepEqual(calls, [
+      { image: nativeImage, action: "session" },
+      { image: legacyImage, action: "prepare" },
+      { image: legacyImage, action: "compile" },
+    ]);
+    assert.equal(result.diagnostics[0].blockIndex, 2);
+    assert.equal(result.diagnostics[1].code, "native-engine-fallback");
+    const jobs = logs.flatMap((line) => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return [];
+      }
+    });
+    assert.equal(
+      jobs.filter((job) => job.event === "pdf-job" && job.fallback === true)
+        .length,
+      1,
+    );
+  } finally {
+    console.log = write;
+  }
 });
 test("cancellation never starts a legacy retry", async () => {
   const controller = new AbortController();
@@ -686,4 +709,75 @@ test("cancellation never starts a legacy retry", async () => {
     ),
   );
   assert.equal(calls, 1);
+});
+
+test("a non-ServiceError from compile returns 422 JSON and CORS", async () => {
+  const api = createApi({
+    ready: true,
+    compile: async () => {
+      throw new Error("disk full");
+    },
+  });
+  api.server.listen(0, "127.0.0.1");
+  await once(api.server, "listening");
+  const base = `http://127.0.0.1:${api.server.address().port}`;
+  try {
+    const response = await fetch(`${base}/pdf/compile`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://publisle.xyz",
+      },
+      body: JSON.stringify({ markdown: "x" }),
+    });
+    assert.equal(response.status, 422);
+    assert.match(
+      response.headers.get("content-type") ?? "",
+      /^application\/json\b/u,
+    );
+    assert.equal(
+      response.headers.get("access-control-allow-origin"),
+      "https://publisle.xyz",
+    );
+    const body = await response.json();
+    assert.equal(body.ok, false);
+    assert.equal(body.code, "compilation-failed");
+    assert.deepEqual(body.diagnostics, []);
+    assert.match(body.message, /Could not compile this document/u);
+  } finally {
+    api.shutdown();
+  }
+});
+
+test("native layout-overflow and invalid-table do not retry with LuaLaTeX", async () => {
+  const nativeImage = `sha256:${"a".repeat(64)}`;
+  const legacyImage = `sha256:${"b".repeat(64)}`;
+  for (const code of ["layout-overflow", "invalid-table"]) {
+    const calls = [];
+    await assert.rejects(
+      () =>
+        compileJob(
+          validateRequest({ markdown: "hello", engine: "rust" }, ["article"]),
+          new AbortController().signal,
+          {
+            nativeImage,
+            image: legacyImage,
+            nativeTemplates: ["article"],
+            runWorker: async (image, _directory, action) => {
+              calls.push({ image, action });
+              throw Object.assign(new Error(code), {
+                code,
+                diagnostics: [{ code, message: "too wide", blockIndex: 0 }],
+              });
+            },
+          },
+        ),
+      (error) => {
+        assert.equal(error.code, code);
+        assert.equal(error.diagnostics[0].message, "too wide");
+        return true;
+      },
+    );
+    assert.deepEqual(calls, [{ image: nativeImage, action: "session" }]);
+  }
 });

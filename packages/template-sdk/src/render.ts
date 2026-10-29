@@ -350,11 +350,17 @@ export function renderLatexArticle(
         `\\begin{quote}${block.paragraphs.map(take).join("\n\n")}\\end{quote}`,
       );
     else if (block.kind === "code") {
-      if (block.value.includes("\\end{verbatim}"))
+      // lstlisting terminates at this control sequence, the same way verbatim
+      // terminated at \end{verbatim}. Reject it before it can close the listing.
+      if (block.value.includes("\\end{lstlisting}"))
         throw new Error("Code contains a verbatim terminator.");
       if (engine === "pdflatex" && /[^\u0020-\u007e\t\n\r]/u.test(block.value))
         throw new Error("Unicode code requires LuaLaTeX.");
-      target.push(`\\begin{verbatim}\n${block.value}\n\\end{verbatim}`);
+      // breaklines keeps a long physical line inside the text block. verbatim
+      // ships the overflow past the page edge, where Poppler drops it.
+      target.push(
+        `\\begin{lstlisting}[breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,basicstyle=\\ttfamily\\small,showstringspaces=false]\n${block.value}\n\\end{lstlisting}`,
+      );
     }
   }
   const unicodePreamble =
@@ -404,7 +410,7 @@ ${needsCjk ? `\\newfontfamily\\cjkfont{${fonts.cjk}}` : ""}
     };
   });
   const manuscript = `${needsColor ? "\\PassOptionsToPackage{dvipsnames,svgnames}{xcolor}\n" : ""}${pdfStandard ? `\\DocumentMetadata{lang=${language},pdfstandard=${pdfStandard},${pdfStandard === "ua-1" ? "pdfversion=1.7," : ""}tagging=on,tagging-setup={math/setup={mathml-AF${pdfStandard === "ua-2" ? ",mathml-SE" : ""}}}}\n` : ""}\\documentclass${profile.classOptions ? `[${profile.classOptions}]` : ""}{${profile.className}}
-${unicodePreamble}${needsColor ? "\\usepackage{xcolor}\n" : ""}\\usepackage{amsmath,${engine === "pdflatex" && profile.pdfSymbols === true ? "amssymb," : ""}graphicx,tabularx${profile.numericCitationPackage ? ",cite" : ""}}
+${unicodePreamble}${needsColor ? "\\usepackage{xcolor}\n" : ""}\\usepackage{amsmath,${engine === "pdflatex" && profile.pdfSymbols === true ? "amssymb," : ""}graphicx,listings,tabularx${profile.numericCitationPackage ? ",cite" : ""}}
 % flafter keeps floats at or after their source position, so a figure can
 % never be hoisted above the abstract region on the first page.
 \\usepackage{flafter}
@@ -436,6 +442,7 @@ ${profile.bibliographyStyle ? (context.bibliography.length ? `${profile.automati
       "flafter.sty",
       "placeins.sty",
       "graphicx.sty",
+      "listings.sty",
       "tabularx.sty",
       "ulem.sty",
       "hyperref.sty",

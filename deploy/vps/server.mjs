@@ -294,11 +294,16 @@ export async function compileJob(request, signal, options) {
   try {
     return await compileAttempt(request, deadline, options);
   } catch (error) {
+    // A wide table or an overfull line will not succeed by switching engines.
+    // Rethrow so the client receives 422 JSON with the native diagnostics
+    // instead of waiting out a LuaLaTeX attempt that fails the same way.
     if (
       request.engine !== "rust" ||
       deadline.aborted ||
       !options.image ||
-      error.code === "engine-unavailable"
+      error.code === "engine-unavailable" ||
+      error.code === "layout-overflow" ||
+      error.code === "invalid-table"
     )
       throw error;
     try {
@@ -306,6 +311,7 @@ export async function compileJob(request, signal, options) {
         { ...request, engine: "lualatex" },
         deadline,
         options,
+        { fallback: true },
       );
       return {
         ...result,
@@ -329,7 +335,7 @@ export async function compileJob(request, signal, options) {
   }
 }
 
-async function compileAttempt(request, signal, options) {
+async function compileAttempt(request, signal, options, attempt = {}) {
   const image = request.engine === "rust" ? options.nativeImage : options.image;
   if (
     request.engine === "rust" &&
@@ -471,6 +477,7 @@ async function compileAttempt(request, signal, options) {
         code: resultCode,
         durationMs: Math.round(performance.now() - started),
         timings,
+        ...(attempt.fallback ? { fallback: true } : {}),
       }),
     );
   }
@@ -744,6 +751,26 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
+  // Log and still terminate. A listener replaces Node's default crash path,
+  // so exiting is what keeps the process from continuing after the failure.
+  const logProcessFailure = (event, reason) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    console.log(
+      JSON.stringify({
+        event,
+        message: error.message,
+        ...(error.stack ? { stack: error.stack } : {}),
+      }),
+    );
+  };
+  process.on("uncaughtException", (error) => {
+    logProcessFailure("uncaughtException", error);
+    process.exit(1);
+  });
+  process.on("unhandledRejection", (reason) => {
+    logProcessFailure("unhandledRejection", reason);
+    process.exit(1);
+  });
   const enabled = process.env.PDF_ENABLED === "true";
   const image = process.env.PDF_WORKER_IMAGE;
   const localQa = process.env.PDF_LOCAL_QA === "true";
