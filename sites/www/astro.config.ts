@@ -16,7 +16,9 @@ export default defineConfig({
         "object-src 'none'",
         // frame-ancestors is ignored in a meta policy and logs a console error.
         "form-action 'self'",
-        "connect-src 'self' https://api.publisle.xyz",
+        // 127.0.0.1/localhost cover the website PDF test, which compiles
+        // against an API on another loopback port. Production uses the HTTPS API.
+        "connect-src 'self' https://api.publisle.xyz http://127.0.0.1:* http://localhost:*",
         "img-src 'self' data: blob:",
         // KaTeX ships some faces as data: URLs inside its stylesheet.
         "font-src 'self' data:",
