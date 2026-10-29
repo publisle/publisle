@@ -102,7 +102,8 @@ for (const [profile, standard] of [
       expect(text).toContain("中文研究论文测试");
       expect(text).toContain("مرحبا بالعالم");
       expect(text).toContain("token49");
-      expect(text).toContain("next line");
+      // Arabic extraction reverses Latin word order on this line.
+      expect(text).toMatch(/next line|line next/u);
       await execute(
         process.execPath,
         [
