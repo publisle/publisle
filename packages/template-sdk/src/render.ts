@@ -8,6 +8,40 @@ import type { LatexEngine, SourcePackage, TemplateContext } from "./index.ts";
 import { placeins } from "./placeins.ts";
 import { toBibtex } from "./bibtex.ts";
 import { latexKey, latexText } from "./escape.ts";
+
+// listings 1.11b opens and closes paragraph hooks unevenly, and a blank line
+// nests one codeline inside another. The block hooks come from the frozen
+// TeX Live 2025 tagging code (display blockenv, not the later latex-dev
+// "std" template). A space keeps a blank line visually empty without nesting.
+const listingsTagging = String.raw`\ExplSyntaxOn
+\DeclareInstance{blockenv}{lstlisting}{display}
+{
+  name                   = lstlisting,
+  tag-name               = verbatim,
+  tag-attr-class         = ,
+  tagging-recipe         = standard,
+  tagging-suppress-paras = true,
+  inner-level-counter    = ,
+  increment-level        = false,
+  setup-code             = ,
+  block-instance         = verbatimblock,
+  inner-instance         = ,
+  final-code             = \tl_set:Nn \l__tag_para_tag_tl {codeline} \ignorespaces,
+}
+\ExplSyntaxOff
+\makeatletter
+\lst@AddToHook{PreInit}{\UseInstance{blockenv}{lstlisting}{}}
+\lst@AddToHook{DeInit}{\endblockenv}
+\makeatother
+`;
+function listingSource(value: string, tagged: boolean): string {
+  if (!tagged) return value;
+  const withoutFinalNewline = value.endsWith("\n") ? value.slice(0, -1) : value;
+  return withoutFinalNewline
+    .split("\n")
+    .map((line) => (line.trim() === "" ? " " : line))
+    .join("\n");
+}
 type WritingDirection = "ltr" | "rtl" | "auto";
 export interface LatexProfile {
   /** Only enable after validating the class against the pinned compiler. */
@@ -350,11 +384,17 @@ export function renderLatexArticle(
         `\\begin{quote}${block.paragraphs.map(take).join("\n\n")}\\end{quote}`,
       );
     else if (block.kind === "code") {
-      if (block.value.includes("\\end{verbatim}"))
+      // lstlisting terminates at this control sequence, the same way verbatim
+      // terminated at \end{verbatim}. Reject it before it can close the listing.
+      if (block.value.includes("\\end{lstlisting}"))
         throw new Error("Code contains a verbatim terminator.");
       if (engine === "pdflatex" && /[^\u0020-\u007e\t\n\r]/u.test(block.value))
         throw new Error("Unicode code requires LuaLaTeX.");
-      target.push(`\\begin{verbatim}\n${block.value}\n\\end{verbatim}`);
+      // breaklines keeps a long physical line inside the text block. verbatim
+      // ships the overflow past the page edge, where Poppler drops it.
+      target.push(
+        `\\begin{lstlisting}[breaklines=true,breakatwhitespace=false,columns=fullflexible,keepspaces=true,basicstyle=\\ttfamily\\small,showstringspaces=false]\n${listingSource(block.value, pdfStandard !== undefined)}\n\\end{lstlisting}`,
+      );
     }
   }
   const unicodePreamble =
@@ -404,14 +444,14 @@ ${needsCjk ? `\\newfontfamily\\cjkfont{${fonts.cjk}}` : ""}
     };
   });
   const manuscript = `${needsColor ? "\\PassOptionsToPackage{dvipsnames,svgnames}{xcolor}\n" : ""}${pdfStandard ? `\\DocumentMetadata{lang=${language},pdfstandard=${pdfStandard},${pdfStandard === "ua-1" ? "pdfversion=1.7," : ""}tagging=on,tagging-setup={math/setup={mathml-AF${pdfStandard === "ua-2" ? ",mathml-SE" : ""}}}}\n` : ""}\\documentclass${profile.classOptions ? `[${profile.classOptions}]` : ""}{${profile.className}}
-${unicodePreamble}${needsColor ? "\\usepackage{xcolor}\n" : ""}\\usepackage{amsmath,${engine === "pdflatex" && profile.pdfSymbols === true ? "amssymb," : ""}graphicx,tabularx${profile.numericCitationPackage ? ",cite" : ""}}
+${unicodePreamble}${needsColor ? "\\usepackage{xcolor}\n" : ""}\\usepackage{amsmath,${engine === "pdflatex" && profile.pdfSymbols === true ? "amssymb," : ""}graphicx,listings,tabularx${profile.numericCitationPackage ? ",cite" : ""}}
 % flafter keeps floats at or after their source position, so a figure can
 % never be hoisted above the abstract region on the first page.
 \\usepackage{flafter}
 \\usepackage{placeins}
 \\usepackage[normalem]{ulem}
 \\usepackage{hyperref}
-\\hypersetup{hidelinks}
+${pdfStandard ? listingsTagging : ""}\\hypersetup{hidelinks}
 \\hypersetup{pdftitle={${latexText(article.title ?? "Untitled")}},pdfauthor={${latexText(article.authors.join(", "))}}}
 ${profile.author ? profile.author(article, text) : `\\title{${text(article.title ?? "Untitled")}}\n\\author{${authors}${affiliations}}`}
 \\date{}
@@ -436,6 +476,7 @@ ${profile.bibliographyStyle ? (context.bibliography.length ? `${profile.automati
       "flafter.sty",
       "placeins.sty",
       "graphicx.sty",
+      "listings.sty",
       "tabularx.sty",
       "ulem.sty",
       "hyperref.sty",

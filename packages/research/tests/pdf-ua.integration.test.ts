@@ -50,6 +50,12 @@ for (const [profile, standard] of [
             ],
           },
         }),
+        createBlock({
+          type: "publisle:code",
+          data: {
+            value: `${Array.from({ length: 50 }, (_, index) => `token${String(index).padStart(2, "0")}`).join(" ")}\n\nnext line`,
+          },
+        }),
       ],
     };
     const source = createLatexPackage(input, {
@@ -95,6 +101,9 @@ for (const [profile, standard] of [
       ).stdout.normalize("NFKC");
       expect(text).toContain("中文研究论文测试");
       expect(text).toContain("مرحبا بالعالم");
+      expect(text).toContain("token49");
+      // Arabic extraction reverses Latin word order on this line.
+      expect(text).toMatch(/next line|line next/u);
       await execute(
         process.execPath,
         [

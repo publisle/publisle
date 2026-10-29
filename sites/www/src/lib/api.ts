@@ -110,10 +110,38 @@ export async function compilePdf(
         : AbortSignal.timeout(220000),
     });
     if (!response.ok) {
-      const payload = (await response.json()) as {
-        message?: string;
-        diagnostics?: ApiDiagnostic[];
-      };
+      const type = (response.headers.get("content-type") ?? "").toLowerCase();
+      const isJson =
+        type.includes("application/json") || type.includes("+json");
+      if (!isJson) {
+        if (response.status === 413)
+          return { ok: false, message: "Document exceeds 256 KiB." };
+        if (
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504
+        )
+          return {
+            ok: false,
+            message: `The PDF service failed while compiling this document (HTTP ${String(response.status)}). Try the fast engine or simplify wide tables.`,
+          };
+        return {
+          ok: false,
+          message: `Compilation failed (${String(response.status)}).`,
+        };
+      }
+      let payload: { message?: string; diagnostics?: ApiDiagnostic[] };
+      try {
+        payload = (await response.json()) as {
+          message?: string;
+          diagnostics?: ApiDiagnostic[];
+        };
+      } catch {
+        return {
+          ok: false,
+          message: `Compilation failed (${String(response.status)}).`,
+        };
+      }
       const diagnostics = Array.isArray(payload.diagnostics)
         ? payload.diagnostics
             .filter(
