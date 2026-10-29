@@ -2,6 +2,29 @@
 # Install this root-owned as /usr/local/sbin/publisle-deploy. Grant the dedicated
 # deploy user sudo access to this entry point only, never to arbitrary scripts.
 set -euo pipefail
+# BEGIN prune_rollbacks
+# Follow-up for #119: rollback directories used to accumulate. Keep the newest
+# three by mtime, and never remove the snapshot taken for this activation.
+prune_rollbacks() {
+  local root=$1
+  local current=$2
+  local -a ranked=()
+  local entry
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    ranked+=("$entry")
+  done < <(find "$root" -mindepth 1 -maxdepth 1 -type d -name 'rollback-*' -printf '%T@ %p\n' | sort -nr | cut -d' ' -f2-)
+  local index=0
+  local path
+  for path in "${ranked[@]}"; do
+    index=$((index + 1))
+    if (( index <= 3 )) || [[ $path == "$current" ]]; then
+      continue
+    fi
+    rm -rf -- "$path"
+  done
+}
+# END prune_rollbacks
 [[ $EUID -eq 0 && ${1:-} =~ ^[a-f0-9]{40}$ && ${2:-} =~ ^sha256:[a-f0-9]{64}$ ]]
 RELEASE_SHA=$1
 IMAGE=$2
@@ -115,6 +138,7 @@ JS
     chmod 0644 /etc/publisle-deployed-release.new
     mv /etc/publisle-deployed-release.new /etc/publisle-deployed-release
     trap - ERR HUP INT TERM
+    prune_rollbacks /opt/publisle-api "$BACKUP"
     echo "Deployed $RELEASE_SHA ($IMAGE), health, legacy defaults and public compilations verified."
     exit 0
   fi

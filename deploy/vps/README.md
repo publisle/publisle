@@ -147,7 +147,14 @@ Forward the original visitor address (`proxy_set_header X-Forwarded-For
 $proxy_add_x_forwarded_for;`), keep body caps at 256 KiB and response timeouts
 at or above 220 seconds, and never expose `PDF_BIND` to the public internet.
 The installer skips Caddy when 80/443 already serve a non-Caddy edge; integrate
-the API host into that proxy manually.
+the API host into that proxy manually. [nginx-api.conf.example](nginx-api.conf.example)
+shows `client_max_body_size 256k`, `proxy_read_timeout 220s`,
+`proxy_intercept_errors on`, and JSON `error_page` bodies for 413 and
+502/503/504. Those locations set `Access-Control-Allow-Origin`,
+`Access-Control-Expose-Headers`, and `Vary` with nginx's `always` flag so the
+browser can read an edge error. Successful activation also keeps only the
+newest three `/opt/publisle-api/rollback-*` directories and never deletes the
+snapshot taken for that activation.
 
 Preserve the installer's `HOME`, `XDG_RUNTIME_DIR` and `DOCKER_HOST` values.
 Restart `publisle-api` and verify `/health` reports `services.pdf=true`. Readiness
