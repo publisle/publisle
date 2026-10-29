@@ -1,5 +1,14 @@
 # @publisle/template-sdk
 
+## 0.2.1
+
+### Patch Changes
+
+- eef3d47: Wrap long code lines with the listings package so every token stays inside the
+  page for LuaLaTeX and pdfLaTeX. Tagged PDF/UA output keeps those listings in
+  the structure tree. Reject a listing terminator, and keep the pdfLaTeX Unicode
+  rejection.
+
 ## 0.2.0
 
 ### Minor Changes
