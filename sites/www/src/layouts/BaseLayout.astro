@@ -53,6 +53,7 @@ const ldScripts = jsonLd ?? [];
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
@@ -99,6 +100,51 @@ const ldScripts = jsonLd ?? [];
         }
       } catch (error) {}
     </script>
+    <script is:inline>
+      function mountCopyButtons() {
+        var status = document.getElementById("copy-code-status");
+        var blocks = document.querySelectorAll("pre");
+        for (var index = 0; index < blocks.length; index += 1) {
+          var pre = blocks[index];
+          if (pre.closest('[aria-label="Compiled preview"]')) continue;
+          if (pre.querySelector(":scope > button.copy-code")) continue;
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "copy-code";
+          button.textContent = "Copy code";
+          button.addEventListener("click", function () {
+            var host = this.parentElement;
+            var control = this;
+            if (!host) return;
+            var clone = host.cloneNode(true);
+            var existing = clone.querySelector("button.copy-code");
+            if (existing) existing.remove();
+            var text = clone.textContent || "";
+            var announce = function (message) {
+              if (status) status.textContent = message;
+            };
+            if (!navigator.clipboard || !navigator.clipboard.writeText) {
+              announce("Could not copy code.");
+              return;
+            }
+            navigator.clipboard.writeText(text).then(
+              function () {
+                announce("Copied code to the clipboard.");
+                control.textContent = "Copied";
+                window.setTimeout(function () {
+                  control.textContent = "Copy code";
+                }, 2000);
+              },
+              function () {
+                announce("Could not copy code.");
+              },
+            );
+          });
+          pre.insertBefore(button, pre.firstChild);
+        }
+      }
+      document.addEventListener("astro:page-load", mountCopyButtons);
+    </script>
     <script>
       document.addEventListener("astro:before-swap", (event) => {
         const theme = document.documentElement.dataset.theme;
@@ -118,10 +164,14 @@ const ldScripts = jsonLd ?? [];
       <div
         class="relative mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-2 px-4"
       >
-        <a href="/" class="flex items-center gap-2 font-display text-lg font-semibold">
+        <a
+          href="/"
+          class="flex items-center gap-2 font-display text-lg font-semibold"
+          aria-label="Publisle home"
+        >
           <img
             src="/brand/lockup-light.svg"
-            alt="Publisle"
+            alt=""
             class="brand-light h-6 w-auto sm:h-7"
             width="112"
             height="28"
@@ -189,5 +239,6 @@ const ldScripts = jsonLd ?? [];
         </p>
       </div>
     </footer>
+    <div id="copy-code-status" class="sr-only" aria-live="polite"></div>
   </body>
 </html>

@@ -585,3 +585,32 @@ main p a {
     order: 1;
   }
 }
+
+/* Copy control for authored code samples. The compiled preview keeps its own
+   pre elements and is excluded by the script. */
+pre:has(> button.copy-code) {
+  position: relative;
+  padding-top: 2.5rem;
+}
+
+button.copy-code {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+button.copy-code:focus,
+button.copy-code:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
