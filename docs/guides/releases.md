@@ -115,6 +115,13 @@ the previous snippet on any failure. Then it replaces `publisle-deploy` and
 after review. Run the workflow before the first release that needs a new entry
 point.
 
+To retry a failed deployment, run the **Redeploy PDF service** workflow on `main`.
+It runs the same `release.sh` with the same `production` environment and restricted
+key, at the current `main` commit, and publishes no packages. Do not re-run the
+release workflow for this: it stages the source of its own older commit, so it
+cannot carry a deployment fix made afterwards, and `promote` accepts only a
+validated version PR.
+
 The VPS must already have the dedicated Publisle rootless Docker runtime, cgroup
 limits, Node.js 24, Java, Poppler and service configuration described in the
 [deployment guide](../../deploy/vps/README.md). Runtime requests never build or
