@@ -9,9 +9,8 @@ import { TEMPLATES, validateRequest, availableTemplates } from "./limits.mjs";
 import { assertCompliant } from "../../tools/validate-pdf-ua.mjs";
 const exec = promisify(execFile),
   root = join(import.meta.dirname, "../..");
-const [image, stage, latexImage] = process.argv.slice(2);
+const [image, stage] = process.argv.slice(2);
 assert(/^sha256:[a-f0-9]{64}$/.test(image ?? ""));
-assert(/^sha256:[a-f0-9]{64}$/.test(latexImage ?? ""));
 assert(stage);
 const own = (await readFile("/proc/self/cgroup", "utf8")).trim().split("::")[1];
 const suffix = "/publisle-pdf.slice";
@@ -176,84 +175,6 @@ for (const template of ids) {
     JSON.stringify(report, null, 2),
   );
 }
-// The API enables PDF_WORKER_IMAGE only when a report names that exact image ID
-// and has one successful sample per template (server.mjs checkReadiness). A
-// release that switches the LaTeX worker must therefore prove it inside the same
-// aggregate budget. One compile per template and engine is the resource gate;
-// the 30-sample latency gate applies to the native path only.
-const latexReport = {
-  image: latexImage,
-  passed: false,
-  aggregateCpu: 0.5,
-  aggregateMemoryMiB: 512,
-  swapMiB: 0,
-  samples: [],
-};
-const png = await readFile(
-  join(root, "examples/articles/paper-convergence.png"),
-);
-const latexAssets = {
-  resolve: async () => [{ address: "93.184.216.34", family: 4 }],
-  download: async () => ({ bytes: png, mime: "image/png" }),
-};
-for (const template of TEMPLATES) {
-  const arabic = template.id === "article-arabic";
-  const markdown =
-    (
-      await readFile(
-        join(
-          root,
-          "examples/articles",
-          arabic ? "article-arabic.md" : "ieee-journal.md",
-        ),
-        "utf8",
-      )
-    ).replaceAll(
-      'src="ieee-square-wave.pdf"',
-      'src="https://fixture.invalid/plot.png"',
-    ) + (arabic ? "\n\nالعَرَبِيَّة لا للاختبار.\n" : "");
-  for (const engine of template.engines) {
-    const started = performance.now();
-    const result = await compileJob(
-      validateRequest({
-        markdown,
-        template: template.id,
-        engine,
-        data: { country: "Jordan" },
-      }),
-      new AbortController().signal,
-      {
-        image: latexImage,
-        imageDependencies: latexAssets,
-        assetBase: "https://fixture.invalid/",
-        jobDirectory: join(stage, "jobs"),
-      },
-    );
-    const file = join(stage, "results", `${template.id}-${engine}.pdf`);
-    await writeFile(file, result.pdf);
-    const text = (await exec("pdftotext", [file, "-"])).stdout;
-    assert(
-      text.includes("1949"),
-      `${template.id}/${engine} lost its references`,
-    );
-    assert(
-      !/\ufffd/u.test(text),
-      `${template.id}/${engine} has missing glyphs`,
-    );
-    latexReport.samples.push({
-      template: template.id,
-      engine,
-      pdfBytes: result.pdf.length,
-    });
-    console.log(
-      JSON.stringify({
-        latexTemplate: template.id,
-        engine,
-        elapsedMs: Math.round(performance.now() - started),
-      }),
-    );
-  }
-}
 const after = await readFile(group + "/memory.events", "utf8");
 const counter = (text) => Number(text.match(/^oom_kill (\d+)$/mu)?.[1] ?? 0);
 assert.equal(
@@ -262,12 +183,7 @@ assert.equal(
   "OOM during deployment validation",
 );
 report.passed = true;
-latexReport.passed = true;
 await writeFile(
   join(stage, "verification.json"),
   JSON.stringify(report, null, 2),
-);
-await writeFile(
-  join(stage, "verification-latex.json"),
-  JSON.stringify(latexReport, null, 2),
 );

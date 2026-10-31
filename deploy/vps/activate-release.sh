@@ -215,7 +215,10 @@ rm -f "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
 bounded dependencies /usr/bin/env -C "$STAGE/source/deploy/vps/qa" /usr/bin/npm ci --ignore-scripts --no-audit --no-fund
 ln -s deploy/vps/qa/node_modules "$STAGE/source/node_modules"
 bounded validator /usr/bin/node tools/install-verapdf.mjs "$VALIDATION/verapdf"
-bounded verify /usr/bin/node deploy/vps/verify-release.mjs "$IMAGE" "$VALIDATION" "$LATEX_IMAGE"
+bounded verify /usr/bin/node deploy/vps/verify-release.mjs "$IMAGE" "$VALIDATION"
+# The LaTeX gate runs in its own process, started with the API's Node flags, so a
+# validation harness never sits in the 512 MiB slice next to the LaTeX container.
+bounded verify-latex /usr/bin/node --jitless --max-old-space-size=48 deploy/vps/verify-latex.mjs "$LATEX_IMAGE" "$VALIDATION"
 BACKUP=$(mktemp -d "/opt/publisle-api/rollback-$RELEASE_SHA.XXXXXX")
 cp -a /etc/publisle-api.env "$BACKUP/env"
 if [[ -e /etc/publisle-deployed-release ]]; then cp -a /etc/publisle-deployed-release "$BACKUP/source"; fi
