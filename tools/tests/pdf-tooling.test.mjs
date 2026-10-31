@@ -236,6 +236,41 @@ test("activation points PDF_WORKER_IMAGE at the verified LaTeX image", async () 
   );
 });
 
+test("the LaTeX gate runs as its own lean process after the native gate", async () => {
+  const source = await activator();
+  const native = source.indexOf("deploy/vps/verify-release.mjs");
+  const latex = source.indexOf("deploy/vps/verify-latex.mjs");
+  assert(native > 0 && latex > native, "LaTeX gate follows the native gate");
+  // The native harness peaks near 200 MiB; inside the 512 MiB slice with the API
+  // and Docker that left no room for lualatex (kernel OOM, container exit 137).
+  assert.doesNotMatch(
+    source.slice(native, native + 120),
+    /LATEX_IMAGE/u,
+    "The native gate no longer carries the LaTeX image",
+  );
+  assert.match(
+    source,
+    /bounded verify-latex \/usr\/bin\/node --jitless --max-old-space-size=48 deploy\/vps\/verify-latex\.mjs "\$LATEX_IMAGE" "\$VALIDATION"/u,
+  );
+  const { readFile } = await import("node:fs/promises");
+  const gate = await readFile(
+    new URL("../../deploy/vps/verify-latex.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(gate, /verification-latex\.json/u);
+  assert.match(gate, /OOM during LaTeX deployment validation/u);
+  // One compile per template with its default engine, as the API readiness check
+  // expects. Non-default engines (LuaLaTeX on ieee-journal) are at the edge of the
+  // budget with the previous image too, so gating them would make deploys flaky.
+  assert.match(gate, /const engine = template\.engines\[0\];/u);
+  assert.doesNotMatch(gate, /of template\.engines\b/u);
+  const nativeGate = await readFile(
+    new URL("../../deploy/vps/verify-release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(nativeGate, /latexImage|verification-latex/u);
+});
+
 test(
   "stage extracts the streamed release bundle and leaves no upload behind",
   {

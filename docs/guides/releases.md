@@ -21,7 +21,10 @@ versions. Research pins an exact external native compiler version published from
 The activation entry point snapshots and loads both native and LaTeX worker
 archives from the same release. Both images are verified inside the 0.5 CPU /
 512 MiB budget: the native image with the full latency gate, the LaTeX image with
-one compile per template and engine. Activation then installs both verification
+one compile per template using its default engine, in a separate small process
+so the harness does not compete with the LaTeX container for the slice. Non-default
+engines are not gated: LuaLaTeX on `ieee-journal` is at the edge of the budget with
+the previous image too. Activation then installs both verification
 reports and sets `PDF_NATIVE_WORKER_IMAGE` and `PDF_WORKER_IMAGE` together, so a
 release goes live without an operator step. The API enables an image only when a
 report names that exact image ID, which is why the report is part of activation.
