@@ -1,0 +1,55 @@
+name: Redeploy PDF service
+
+# Deploys the current main commit to the VPS without publishing packages. Use it
+# to retry a failed deployment: a re-run of the release workflow stages the source
+# of its own, older commit, so it cannot carry a deployment fix made afterwards,
+# and publication only happens for a validated version PR.
+#
+# It is the same deployment as the release workflow's deploy job: the same
+# `production` environment, the same restricted deploy key, and the same
+# deploy/vps/release.sh. The server still activates only a commit that is on main
+# and only archives that match the release record written here.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One redeployment at a time. The server also serializes every activation with a
+# lock, so it cannot interleave with the release workflow's own deployment.
+concurrency:
+  group: pdf-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    permissions:
+      contents: read
+      # Writes the release record that the server verifies before activation.
+      statuses: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # The SSH step must not share a checkout that holds the GitHub token.
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy and validate PDF service
+        env:
+          PDF_DEPLOY_HOST: ${{ vars.PDF_DEPLOY_HOST }}
+          PDF_DEPLOY_USER: ${{ vars.PDF_DEPLOY_USER }}
+          PDF_DEPLOY_KEY: ${{ secrets.PDF_DEPLOY_KEY }}
+          PDF_DEPLOY_HOST_KEY: ${{ vars.PDF_DEPLOY_HOST_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/vps/release.sh
