@@ -237,6 +237,78 @@ test("activation points PDF_WORKER_IMAGE at the verified LaTeX image", async () 
 });
 
 test(
+  "stage extracts the streamed release bundle and leaves no upload behind",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const { mkdtemp, writeFile, readdir, rm } =
+      await import("node:fs/promises");
+    const { spawnSync } = await import("node:child_process");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const source = await activator();
+    const functions = source.match(
+      /# BEGIN safe_tar\n([\s\S]*?)# END safe_tar/u,
+    )?.[1];
+    const stage = source.match(
+      /(# The upload lands beside[\s\S]*?\nif \[\[ \$ACTION == stage \]\]; then[\s\S]*?\n  exit 0\nfi)/u,
+    )?.[1];
+    assert(functions && stage, "The stage branch is present");
+    const directory = await mkdtemp(join(tmpdir(), "publisle-stage-"));
+    try {
+      const sha = "a".repeat(40);
+      for (const name of ["image.tar.gz", "latex-image.tar.gz", "source.tar"]) {
+        await writeFile(join(directory, name), name);
+      }
+      assert.equal(
+        spawnSync(
+          "tar",
+          [
+            "-C",
+            directory,
+            "-cf",
+            join(directory, "bundle.tar"),
+            "image.tar.gz",
+            "latex-image.tar.gz",
+            "source.tar",
+          ],
+          { encoding: "utf8" },
+        ).status,
+        0,
+      );
+      // Only root ownership is stubbed; the stage logic itself runs unchanged.
+      const script = [
+        "set -euo pipefail",
+        functions,
+        'install() { local a=(); while (($#)); do case $1 in -o|-g) shift 2;; *) a+=("$1"); shift;; esac; done; command install "${a[@]}"; }',
+        `INCOMING_ROOT="${join(directory, "incoming")}"`,
+        `RELEASE_SHA=${sha}`,
+        'INCOMING="$INCOMING_ROOT/$RELEASE_SHA"',
+        "ACTION=stage",
+        'install -d -m 0700 "$INCOMING_ROOT"',
+        stage,
+      ].join("\n");
+      const result = spawnSync("bash", ["-c", script], {
+        encoding: "utf8",
+        input: (await import("node:fs")).readFileSync(
+          join(directory, "bundle.tar"),
+        ),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /Staged a{40}\./u);
+      assert.deepEqual(
+        (await readdir(join(directory, "incoming", sha))).sort(),
+        ["image.tar.gz", "latex-image.tar.gz", "source.tar"],
+      );
+      assert.deepEqual(await readdir(join(directory, "incoming")), [sha]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
   "root extraction refuses unsafe archives and accepts the release layout",
   {
     skip: process.platform === "win32",

@@ -69,21 +69,24 @@ install -d -o root -g root -m 0755 "$RELEASES"
 # Staged bytes live where only root can write or open them. The deploy user can
 # stream a bundle in, but cannot touch it between stage and activate.
 install -d -o root -g root -m 0700 "$INCOMING_ROOT"
+# The upload lands beside the extraction directory, never inside it: extraction
+# requires an empty directory.
+BUNDLE="$INCOMING_ROOT/$RELEASE_SHA.bundle"
 if [[ $ACTION == cleanup ]]; then
-  rm -rf -- "$INCOMING"
+  rm -rf -- "$INCOMING" "$BUNDLE"
   exit 0
 fi
 if [[ $ACTION == stage ]]; then
   # Bundle members are fixed names, so no member can name another path.
   STAGE_MAX_BYTES=$((4 * 1024 * 1024 * 1024))
   find "$INCOMING_ROOT" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf -- {} +
-  rm -rf -- "$INCOMING"
+  rm -rf -- "$INCOMING" "$BUNDLE"
   install -d -o root -g root -m 0700 "$INCOMING"
-  trap 'rm -rf -- "$INCOMING"' ERR HUP INT TERM
-  head -c $((STAGE_MAX_BYTES + 1)) > "$INCOMING/bundle.tar"
-  (( $(stat -c %s "$INCOMING/bundle.tar") <= STAGE_MAX_BYTES ))
-  safe_tar_extract "$INCOMING/bundle.tar" '^(image\.tar\.gz|latex-image\.tar\.gz|source\.tar)$' "$INCOMING"
-  rm -f "$INCOMING/bundle.tar"
+  trap 'rm -rf -- "$INCOMING" "$BUNDLE"' ERR HUP INT TERM
+  head -c $((STAGE_MAX_BYTES + 1)) > "$BUNDLE"
+  (( $(stat -c %s "$BUNDLE") <= STAGE_MAX_BYTES ))
+  safe_tar_extract "$BUNDLE" '^(image\.tar\.gz|latex-image\.tar\.gz|source\.tar)$' "$INCOMING"
+  rm -f -- "$BUNDLE"
   for member in image.tar.gz latex-image.tar.gz source.tar; do
     [[ -f "$INCOMING/$member" && ! -L "$INCOMING/$member" ]]
   done
