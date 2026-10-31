@@ -252,7 +252,7 @@ test(
       /# BEGIN safe_tar\n([\s\S]*?)# END safe_tar/u,
     )?.[1];
     const stage = source.match(
-      /(# The upload lands beside[\s\S]*?\nif \[\[ \$ACTION == stage \]\]; then[\s\S]*?\n  exit 0\nfi)/u,
+      /(# The upload lands beside[\s\S]*?\nif \[\[ \$ACTION == stage \]\]; then[\s\S]*?\n {2}exit 0\nfi)/u,
     )?.[1];
     assert(functions && stage, "The stage branch is present");
     const directory = await mkdtemp(join(tmpdir(), "publisle-stage-"));
