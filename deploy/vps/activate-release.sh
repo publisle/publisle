@@ -6,7 +6,10 @@
 #   publisle-deploy activate <sha>  verify provenance, then activate the staged release
 #   publisle-deploy cleanup <sha>   remove that release's staged bytes
 set -euo pipefail
-umask 077
+# Files this script writes carry explicit modes. Keep the default umask so the
+# service user can read what it must (extracted source, verification reports);
+# private data lives in 0700 directories or is written under its own umask.
+umask 022
 # BEGIN prune_rollbacks
 # Follow-up for #119: rollback directories used to accumulate. Keep the newest
 # three by mtime, and never remove the snapshot taken for this activation.
@@ -83,7 +86,7 @@ if [[ $ACTION == stage ]]; then
   rm -rf -- "$INCOMING" "$BUNDLE"
   install -d -o root -g root -m 0700 "$INCOMING"
   trap 'rm -rf -- "$INCOMING" "$BUNDLE"' ERR HUP INT TERM
-  head -c $((STAGE_MAX_BYTES + 1)) > "$BUNDLE"
+  (umask 077; head -c $((STAGE_MAX_BYTES + 1)) > "$BUNDLE")
   (( $(stat -c %s "$BUNDLE") <= STAGE_MAX_BYTES ))
   safe_tar_extract "$BUNDLE" '^(image\.tar\.gz|latex-image\.tar\.gz|source\.tar)$' "$INCOMING"
   rm -f -- "$BUNDLE"
@@ -164,7 +167,8 @@ chown -R root:root "$STAGE"
 chown root:publisle "$STAGE" "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
 chmod 750 "$STAGE"
 chmod 640 "$STAGE/image.tar.gz" "$STAGE/latex-image.tar.gz"
-chmod -R go-w "$STAGE/source"
+# The service user must read and traverse the source, but never write to it.
+chmod -R go+rX,go-w "$STAGE/source"
 VALIDATION="$STAGE/validation"
 install -d -o publisle -g publisle -m 0750 "$VALIDATION"
 chown -R publisle:publisle "$STAGE/source/deploy/vps/qa"

@@ -308,6 +308,74 @@ test(
   },
 );
 
+test("activation keeps a readable default umask and a private upload", async () => {
+  const source = await activator();
+  // A global umask 077 once masked the 0644 verification reports to 0600, which
+  // the unprivileged API user could not read.
+  assert.match(source, /^umask 022$/mu);
+  assert.doesNotMatch(source, /^umask 077/mu);
+  assert.match(source, /\(umask 077; head -c [^\n]*> "\$BUNDLE"\)/u);
+});
+
+test(
+  "extracted source is readable and traversable but not writable by the service user",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const { mkdtemp, mkdir, writeFile, rm, stat } =
+      await import("node:fs/promises");
+    const { spawnSync } = await import("node:child_process");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const source = await activator();
+    const functions = source.match(
+      /# BEGIN safe_tar\n([\s\S]*?)# END safe_tar/u,
+    )?.[1];
+    const permissions = source.match(
+      /^chmod -R [^\n]* "\$STAGE\/source"$/mu,
+    )?.[0];
+    assert(functions && permissions, "The source permission step is present");
+    const directory = await mkdtemp(join(tmpdir(), "publisle-source-mode-"));
+    try {
+      await mkdir(join(directory, "src/source/deploy/vps"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(directory, "src/source/deploy/vps/verify-release.mjs"),
+        "ok",
+        { mode: 0o755 },
+      );
+      await writeFile(join(directory, "src/source/package.json"), "{}", {
+        mode: 0o644,
+      });
+      const script = [
+        "set -euo pipefail",
+        "umask 077",
+        functions,
+        `STAGE="${join(directory, "stage")}"`,
+        'mkdir "$STAGE" "$STAGE/unpack"',
+        `tar -C "${join(directory, "src")}" -cf "$STAGE/source.tar" source`,
+        'safe_tar_extract "$STAGE/source.tar" \'^source(/.*)?$\' "$STAGE/unpack"',
+        'mv "$STAGE/unpack/source" "$STAGE/source"',
+        permissions,
+      ].join("\n");
+      const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+      const mode = async (path) =>
+        (await stat(join(directory, "stage/source", path))).mode & 0o777;
+      // Directories: group and others read and traverse, never write.
+      assert.equal(await mode("."), 0o755);
+      assert.equal(await mode("deploy/vps"), 0o755);
+      // Files: readable by everyone, the executable bit is preserved, no writes.
+      assert.equal(await mode("package.json"), 0o644);
+      assert.equal(await mode("deploy/vps/verify-release.mjs"), 0o755);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
 test(
   "root extraction refuses unsafe archives and accepts the release layout",
   {
