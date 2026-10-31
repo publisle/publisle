@@ -19,10 +19,15 @@ versions. Research pins an exact external native compiler version published from
    defaults, and restores the previous API configuration on failure.
 
 The activation entry point snapshots and loads both native and LaTeX worker
-archives from the same release. Reinstall the reviewed root-owned
-`deploy/vps/activate-release.sh` when that entry point changes. LaTeX activation
-still requires its matching resource-budget verification report and operator
-image pin; staging an image alone does not update the live LaTeX worker.
+archives from the same release. Both images are verified inside the 0.5 CPU /
+512 MiB budget: the native image with the full latency gate, the LaTeX image with
+one compile per template and engine. Activation then installs both verification
+reports and sets `PDF_NATIVE_WORKER_IMAGE` and `PDF_WORKER_IMAGE` together, so a
+release goes live without an operator step. The API enables an image only when a
+report names that exact image ID, which is why the report is part of activation.
+A failed health check or public probe restores the previous images, reports and
+environment. Reinstall the reviewed root-owned entry points through the host sync
+below when they change.
 
 PR checks cover packed declarations, dependency ranges, isolated Core and Research
 consumers, the Fourier showcase, and Research installs on Linux, macOS and Windows.
@@ -75,10 +80,37 @@ do not trigger ordinary PR workflows.
 
 For production, configure `PDF_DEPLOY_HOST`, `PDF_DEPLOY_USER` and the pinned
 `PDF_DEPLOY_HOST_KEY` as production environment variables, and `PDF_DEPLOY_KEY` as
-its dedicated SSH secret. Install `deploy/vps/activate-release.sh` root-owned as
-`/usr/local/sbin/publisle-deploy`; the deployment account may sudo only this entry
-point. The production environment uses automatic checks without required human
-reviewers. Never reuse a personal SSH private key for CI.
+its dedicated SSH secret. The production environment uses automatic checks without
+required human reviewers. Never reuse a personal SSH private key for CI.
+
+The deploy key is not a login. Its `authorized_keys` line is
+`restrict,command="/usr/local/bin/publisle-receive" ssh-ed25519 ...`, and the
+receiver accepts only `status`, `stage <sha>`, `activate <sha>` and
+`cleanup <sha>`. The deployment account may sudo only
+`/usr/local/sbin/publisle-deploy`. Staging writes into a root-owned directory the
+account cannot open, and root refuses archive members that are absolute, contain
+`..`, or are links.
+
+A forced command stops a shell but not a malicious release, so activation checks
+what the SSH client cannot forge. The commit must be reachable from `main`. The
+release job records one digest over the three uploaded archives as a
+`publisle-pdf-release` commit status, written with its own `GITHUB_TOKEN`, and the
+server fetches that status and refuses archives that differ. It takes no digest
+from the SSH command. The server reads `PUBLISLE_REPO=<owner>/<repo>` from the
+root-owned `/etc/publisle-deploy.conf`; add a root-only
+`/etc/publisle-deploy-github-token` if the repository is private.
+
+Replacing the privileged entry points or the nginx snippet is root, so it uses a
+second key. The **Host policy sync** workflow runs in the `production-host`
+environment, which must require a reviewer, with `PDF_HOST_SYNC_KEY` (secret) and
+`PDF_HOST_SYNC_USER`, `PDF_DEPLOY_HOST` and `PDF_DEPLOY_HOST_KEY` (variables).
+That key can run only `publisle-host-sync`. The server fetches the files from
+GitHub at a commit on `main` and uploads nothing from the runner. It replaces the
+nginx snippet first, runs `nginx -t`, reloads, probes the public 413, and restores
+the previous snippet on any failure. Then it replaces `publisle-deploy` and
+`publisle-receive`. It does not replace itself; update `publisle-host-sync` by hand
+after review. Run the workflow before the first release that needs a new entry
+point.
 
 The VPS must already have the dedicated Publisle rootless Docker runtime, cgroup
 limits, Node.js 24, Java, Poppler and service configuration described in the

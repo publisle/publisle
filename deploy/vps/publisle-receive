@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Forced command for the CI deploy key. Install it root-owned, mode 0755, as
+# /usr/local/bin/publisle-receive, and pin it in the deploy user's authorized_keys:
+#
+#   restrict,command="/usr/local/bin/publisle-receive" ssh-ed25519 AAAA... ci-deploy
+#
+# `restrict` disables forwarding, agent use and terminals. The client cannot name
+# another program, so the key cannot open a shell. This receiver accepts only:
+#   status                 print the deployed commit
+#   stage <40-hex-sha>     stream the release bundle on stdin (root-owned staging)
+#   activate <40-hex-sha>  verify provenance, then activate
+#   cleanup <40-hex-sha>   remove that release's staged bytes
+# The command is matched against one fixed pattern and never evaluated. sudo may
+# run only /usr/local/sbin/publisle-deploy for this user.
+set -euo pipefail
+umask 077
+command=${SSH_ORIGINAL_COMMAND:-}
+if [[ $command == status ]]; then
+  if [[ -f /etc/publisle-deployed-release ]]; then cat /etc/publisle-deployed-release; fi
+  exit 0
+fi
+if [[ $command =~ ^(stage|activate|cleanup)\ ([a-f0-9]{40})$ ]]; then
+  exec /usr/bin/sudo -n /usr/local/sbin/publisle-deploy "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+fi
+echo 'Unsupported deployment command.' >&2
+exit 2

@@ -150,3 +150,35 @@ test(
     }
   },
 );
+
+test(
+  "LuaLaTeX keeps every token of a long code line instead of clipping it (#133)",
+  { skip: !process.env.PDF_TEST_WORKER_IMAGE, timeout: 180000 },
+  async () => {
+    const jobDirectory = await mkdtemp(join(tmpdir(), "pdf-code-jobs-"));
+    const tokens = Array.from(
+      { length: 50 },
+      (_, index) => `token${String(index).padStart(2, "0")}`,
+    );
+    const markdown = `---\ntitle: Long code line\nlanguage: en\nauthors:\n  - name: Ada\n---\n\n\`\`\`text\n${tokens.join(" ")}\n\`\`\`\n`;
+    try {
+      const result = await compileJob(
+        validateRequest({ markdown, template: "article", engine: "lualatex" }),
+        new AbortController().signal,
+        {
+          image: process.env.PDF_TEST_WORKER_IMAGE,
+          assetBase: "https://fixture.invalid/",
+          jobDirectory,
+        },
+      );
+      const path = join(jobDirectory, "long-code.pdf");
+      await writeFile(path, result.pdf);
+      const text = (await execute("pdftotext", [path, "-"])).stdout;
+      const kept = tokens.filter((token) => text.includes(token));
+      // verbatim shipped the overflow past the page edge; Poppler dropped it.
+      assert.equal(kept.length, tokens.length, `kept ${kept.length} of 50`);
+    } finally {
+      await rm(jobDirectory, { recursive: true, force: true });
+    }
+  },
+);

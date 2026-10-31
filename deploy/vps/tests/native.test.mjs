@@ -164,6 +164,72 @@ test(
   },
 );
 
+test(
+  "native 0.6.3 keeps tabs and emoji, and compiles a 12-column table without LuaLaTeX",
+  {
+    skip: !process.env.PDF_TEST_NATIVE_WORKER_IMAGE,
+    timeout: 180000,
+  },
+  async () => {
+    const temporary = await mkdtemp(join(tmpdir(), "publisle-native-wide-"));
+    const jobs = join(temporary, "jobs");
+    await mkdir(jobs);
+    const header =
+      "---\ntitle: Native regression\nlanguage: en\nauthors:\n  - name: Ada\n---\n\n";
+    const row = (cell) =>
+      `| ${Array.from({ length: 12 }, (_, index) => cell(index)).join(" | ")} |`;
+    const table = [
+      row((index) => `Column heading ${index + 1}`),
+      row(() => "---"),
+      row((index) => `value-${index + 1}`),
+    ].join("\n");
+    const options = {
+      nativeImage: process.env.PDF_TEST_NATIVE_WORKER_IMAGE,
+      nativeTemplates: ["article"],
+      image: process.env.PDF_TEST_NATIVE_WORKER_IMAGE,
+      jobDirectory: jobs,
+      assetBase: "https://fixture.invalid/",
+    };
+    const compile = async (markdown) =>
+      compileJob(
+        validateRequest({ markdown, engine: "rust" }, ["article"]),
+        new AbortController().signal,
+        options,
+      );
+    const extract = async (name, result) => {
+      const path = join(temporary, name);
+      await writeFile(path, result.pdf);
+      return (await execute("pdftotext", [path, "-"])).stdout.normalize("NFKC");
+    };
+    try {
+      // 0.6.2 replaced the tab with U+FFFD and dropped what followed.
+      const tabs = await compile(
+        `${header}\`\`\`text\nkeyword\tvalue\n\`\`\`\n\nEmoji \u{1F600} stays.\n`,
+      );
+      const tabText = await extract("tabs.pdf", tabs);
+      assert(!tabText.includes("\uFFFD"), tabText);
+      assert.match(tabText, /keyword\s+value/u);
+      assert(tabText.includes("\u{1F600}"), tabText);
+
+      // 0.6.3 no longer shrinks the table below 0.6, and splits overlong words.
+      // The result is a native PDF; a LuaLaTeX retry or an error is a regression.
+      const wide = await compile(`${header}${table}\n`);
+      assert(
+        !wide.diagnostics.some(
+          (entry) => entry.code === "native-engine-fallback",
+        ),
+        JSON.stringify(wide.diagnostics),
+      );
+      assert.equal(wide.pdf.subarray(0, 8).toString(), "%PDF-2.0");
+      const wideText = await extract("wide.pdf", wide);
+      assert(!wideText.includes("\uFFFD"), wideText);
+      assert.deepEqual(await readdir(jobs), []);
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  },
+);
+
 // Poppler and PDF.js extraction are checked above. Interactive Acrobat selection
 // still needs independent evidence before the full Arabic readiness gate closes.
 test.todo(

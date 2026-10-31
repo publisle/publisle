@@ -2,21 +2,20 @@
 # This file is documentation. install.sh does not copy it into place.
 # See deploy/vps/README.md. Point proxy_pass at loopback or PDF_BIND, and
 # do not publish that address.
+#
+# The size cap, proxy timeout and JSON error pages live in
+# nginx-api-errors.conf so they can be updated without replacing this block
+# (and the certificates the operator configured in it). Add the ssl_certificate
+# lines for your host, and keep the include.
 
 server {
     listen 443 ssl;
     server_name api.publisle.xyz;
 
-    # Match the API body cap and the website's 220s compile budget.
-    client_max_body_size 256k;
-    proxy_read_timeout 220s;
-    # Use the JSON locations below instead of nginx's HTML error pages.
-    proxy_intercept_errors on;
+    # ssl_certificate     /path/to/fullchain.pem;
+    # ssl_certificate_key /path/to/privkey.pem;
 
-    error_page 413 =413 @publisle_413;
-    error_page 502 =502 @publisle_502;
-    error_page 503 =503 @publisle_503;
-    error_page 504 =504 @publisle_504;
+    include /etc/nginx/snippets/publisle-api-errors.conf;
 
     location / {
         proxy_pass http://127.0.0.1:8787;
@@ -24,43 +23,5 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # The "always" flag keeps CORS headers on these error statuses. Without
-    # it, nginx omits add_header when the status is 4xx or 5xx.
-    location @publisle_413 {
-        internal;
-        default_type application/json;
-        add_header Access-Control-Allow-Origin "https://publisle.xyz" always;
-        add_header Access-Control-Expose-Headers "Retry-After, X-Publisle-Diagnostics" always;
-        add_header Vary Origin always;
-        return 413 '{"ok":false,"code":"request-limit","message":"Document exceeds 256 KiB."}';
-    }
-
-    location @publisle_502 {
-        internal;
-        default_type application/json;
-        add_header Access-Control-Allow-Origin "https://publisle.xyz" always;
-        add_header Access-Control-Expose-Headers "Retry-After, X-Publisle-Diagnostics" always;
-        add_header Vary Origin always;
-        return 502 '{"ok":false,"code":"upstream-error","message":"The PDF service failed while compiling this document (HTTP 502). Try the fast engine or simplify wide tables."}';
-    }
-
-    location @publisle_503 {
-        internal;
-        default_type application/json;
-        add_header Access-Control-Allow-Origin "https://publisle.xyz" always;
-        add_header Access-Control-Expose-Headers "Retry-After, X-Publisle-Diagnostics" always;
-        add_header Vary Origin always;
-        return 503 '{"ok":false,"code":"upstream-error","message":"The PDF service failed while compiling this document (HTTP 503). Try the fast engine or simplify wide tables."}';
-    }
-
-    location @publisle_504 {
-        internal;
-        default_type application/json;
-        add_header Access-Control-Allow-Origin "https://publisle.xyz" always;
-        add_header Access-Control-Expose-Headers "Retry-After, X-Publisle-Diagnostics" always;
-        add_header Vary Origin always;
-        return 504 '{"ok":false,"code":"upstream-error","message":"The PDF service failed while compiling this document (HTTP 504). Try the fast engine or simplify wide tables."}';
     }
 }

@@ -154,10 +154,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: production
+    permissions:
+      contents: read
+      # Writes the release record that the server verifies before activation.
+      statuses: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The SSH step must not share a checkout that holds the GitHub token.
+          persist-credentials: false
       - uses: pnpm/action-setup@v6
         with:
           version: 11.17.0
@@ -172,4 +178,5 @@ jobs:
           PDF_DEPLOY_USER: ${{ vars.PDF_DEPLOY_USER }}
           PDF_DEPLOY_KEY: ${{ secrets.PDF_DEPLOY_KEY }}
           PDF_DEPLOY_HOST_KEY: ${{ vars.PDF_DEPLOY_HOST_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: bash deploy/vps/release.sh

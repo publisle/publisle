@@ -120,6 +120,10 @@ PDF_ASSET_BASE=https://publisle.xyz/
 PDF_CACHE_DIR=/var/lib/publisle-pdf/cache
 ```
 
+This is the manual first installation. Later CI releases rewrite `PDF_WORKER_IMAGE`,
+`PDF_NATIVE_WORKER_IMAGE` and both verification reports together; see
+[CI deploy access](#ci-deploy-access).
+
 ## PDF cache
 
 Without `PDF_CACHE_DIR` every compile runs the full container pipeline, so an
@@ -147,14 +151,77 @@ Forward the original visitor address (`proxy_set_header X-Forwarded-For
 $proxy_add_x_forwarded_for;`), keep body caps at 256 KiB and response timeouts
 at or above 220 seconds, and never expose `PDF_BIND` to the public internet.
 The installer skips Caddy when 80/443 already serve a non-Caddy edge; integrate
-the API host into that proxy manually. [nginx-api.conf.example](nginx-api.conf.example)
-shows `client_max_body_size 256k`, `proxy_read_timeout 220s`,
+the API host into that proxy manually. [nginx-api-errors.conf](nginx-api-errors.conf)
+holds `client_max_body_size 256k`, `proxy_read_timeout 220s`,
 `proxy_intercept_errors on`, and JSON `error_page` bodies for 413 and
 502/503/504. Those locations set `Access-Control-Allow-Origin`,
 `Access-Control-Expose-Headers`, and `Vary` with nginx's `always` flag so the
-browser can read an edge error. Successful activation also keeps only the
+browser can read an edge error. [nginx-api.conf.example](nginx-api.conf.example)
+shows the surrounding server block. Do not copy the example over a live site: it
+has no certificates. Install the snippet once as
+`/etc/nginx/snippets/publisle-api-errors.conf`, add
+`include /etc/nginx/snippets/publisle-api-errors.conf;` inside the existing
+`api.publisle.xyz` TLS server, then `nginx -t` and reload. The edge accepts a
+request only up to 256 KiB, so a larger POST gets that JSON 413 rather than nginx's
+HTML page, which a browser cannot read cross-origin. After that, the host sync
+replaces the snippet. Successful activation also keeps only the
 newest three `/opt/publisle-api/rollback-*` directories and never deletes the
 snapshot taken for that activation.
+
+## CI deploy access
+
+CI reaches this host with two keys that can each run only fixed commands. Neither
+is a login. Install these root-owned, once, before the first release that uses them:
+
+| File on the server                   | Source in `deploy/vps/` | Mode |
+| ------------------------------------ | ----------------------- | ---- |
+| `/usr/local/sbin/publisle-deploy`    | `activate-release.sh`   | 0755 |
+| `/usr/local/bin/publisle-receive`    | `publisle-receive`      | 0755 |
+| `/usr/local/sbin/publisle-host-sync` | `publisle-host-sync`    | 0755 |
+
+`/etc/publisle-deploy.conf` (root-owned, not writable by others) is sourced by root:
+
+```text
+PUBLISLE_REPO=<owner>/<repo>
+# Optional. Defaults are for a host-installed nginx; set them for a container.
+# NGINX_SNIPPET=/etc/nginx/snippets/publisle-api-errors.conf
+# NGINX_TEST_CMD="nginx -t"
+# NGINX_RELOAD_CMD="systemctl reload nginx"
+```
+
+For a private repository, put a read-only token in `/etc/publisle-deploy-github-token`
+(root-only, mode 0600). `sudoers` grants each account exactly one program:
+
+```text
+deploy    ALL=(root) NOPASSWD: /usr/local/sbin/publisle-deploy
+hostsync  ALL=(root) NOPASSWD: /usr/local/sbin/publisle-host-sync
+```
+
+`authorized_keys` pins each key to its program. `restrict` disables forwarding,
+agents and terminals:
+
+```text
+# deploy user (automatic production environment)
+restrict,command="/usr/local/bin/publisle-receive" ssh-ed25519 AAAA... ci-deploy
+# hostsync user (production-host environment, requires a reviewer)
+restrict,command="/usr/local/sbin/publisle-host-sync" ssh-ed25519 AAAA... ci-host-sync
+```
+
+Cut over in this order, before merging a release that ships the new `release.sh`.
+The old key is a shell, and the new script sends it `status`, which a shell does
+not understand:
+
+1. Install the three files and the config above, and add the sudoers lines.
+2. Install the nginx snippet and its `include`, as described above.
+3. Restrict the deploy key's `authorized_keys` line, then create the host-sync user and key.
+4. Run the **Host policy sync** workflow once to confirm that the host key, the
+   fetch from GitHub and the 413 probe all work.
+
+Activation does not trust the SSH client. Besides the commit being on `main`, it
+verifies the three uploaded archives against the `publisle-pdf-release` commit
+status that the release job wrote with its own token, and it loads images only
+from that verified snapshot. A stolen deploy key can therefore stage bytes but
+not make the server accept bytes the release job did not build.
 
 Preserve the installer's `HOME`, `XDG_RUNTIME_DIR` and `DOCKER_HOST` values.
 Restart `publisle-api` and verify `/health` reports `services.pdf=true`. Readiness
