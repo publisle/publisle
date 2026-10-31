@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Host policy sync. Install root-owned, mode 0755, as /usr/local/sbin/publisle-host-sync.
+# It is the forced command of a second, reviewer-gated key (GitHub environment
+# production-host), never of the automatic app-deploy key:
+#
+#   restrict,command="/usr/local/sbin/publisle-host-sync" ssh-ed25519 AAAA... ci-host-sync
+#
+# and sudoers lets that key's user run only this file:
+#
+#   hostsync ALL=(root) NOPASSWD: /usr/local/sbin/publisle-host-sync
+#
+# The client names a commit and nothing else. The server fetches the reviewed files
+# from GitHub at that commit, which must be on main, so a stolen key cannot supply
+# bytes. It replaces the activator, the deploy receiver and the nginx error snippet.
+# This file is not in that list: update it by hand after review.
+set -euo pipefail
+umask 022
+if [[ $EUID -ne 0 ]]; then
+  # Running as the SSH user: match one fixed command, then re-run as root.
+  if [[ ${SSH_ORIGINAL_COMMAND:-} =~ ^sync\ ([a-f0-9]{40})$ ]]; then
+    exec /usr/bin/sudo -n /usr/local/sbin/publisle-host-sync sync "${BASH_REMATCH[1]}"
+  fi
+  echo 'Unsupported host command.' >&2
+  exit 2
+fi
+[[ $# -eq 2 && $1 == sync && $2 =~ ^[a-f0-9]{40}$ ]]
+SHA=$2
+exec 9>/run/publisle-deploy.lock
+flock -n 9 || { echo 'A deployment is running.' >&2; exit 1; }
+CONFIG=/etc/publisle-deploy.conf
+[[ -f $CONFIG && ! -L $CONFIG && $(stat -c '%u %a' "$CONFIG") =~ ^0\ [0-7][0145][0145]$ ]]
+# shellcheck disable=SC1090
+source "$CONFIG"
+[[ ${PUBLISLE_REPO:-} =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "Set PUBLISLE_REPO=<owner>/<repo> in $CONFIG." >&2; exit 1; }
+SNIPPET=${NGINX_SNIPPET:-/etc/nginx/snippets/publisle-api-errors.conf}
+NGINX_TEST=${NGINX_TEST_CMD:-nginx -t}
+NGINX_RELOAD=${NGINX_RELOAD_CMD:-systemctl reload nginx}
+PUBLIC_API=${PUBLISLE_PUBLIC_API:-https://api.publisle.xyz}
+WORK=$(mktemp -d)
+trap 'rm -rf -- "$WORK"' EXIT
+
+github_get() {
+  local url=$1 output=$2 accept=$3
+  if [[ -f /etc/publisle-deploy-github-token ]]; then
+    printf 'header = "Authorization: Bearer %s"\n' "$(< /etc/publisle-deploy-github-token)" |
+      curl -fsS --proto '=https' --max-time 30 --max-filesize 262144 -H "Accept: $accept" -K - -o "$output" "$url"
+  else
+    curl -fsS --proto '=https' --max-time 30 --max-filesize 262144 -H "Accept: $accept" -o "$output" "$url"
+  fi
+}
+fetch_file() { github_get "https://api.github.com/repos/$PUBLISLE_REPO/contents/deploy/vps/$1?ref=$SHA" "$WORK/$1" 'application/vnd.github.raw+json'; }
+
+# The commit must be on main. "behind" or "identical" against main means it is.
+github_get "https://api.github.com/repos/$PUBLISLE_REPO/compare/main...$SHA?per_page=1" "$WORK/compare.json" 'application/vnd.github+json'
+/usr/bin/node --input-type=module - "$WORK/compare.json" <<'JS'
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+assert(['behind','identical'].includes(JSON.parse(readFileSync(process.argv[2],'utf8')).status), 'The commit is not on main');
+JS
+for file in activate-release.sh publisle-receive nginx-api-errors.conf; do fetch_file "$file"; done
+for script in activate-release.sh publisle-receive; do
+  [[ $(head -c 19 "$WORK/$script") == '#!/usr/bin/env bash' ]]
+  bash -n "$WORK/$script"
+done
+# Pin the privileged entry points to their purpose, not just to valid syntax.
+grep -q 'publisle-deploy stage <sha>' "$WORK/activate-release.sh"
+grep -q 'SSH_ORIGINAL_COMMAND' "$WORK/publisle-receive"
+grep -q 'client_max_body_size 256k;' "$WORK/nginx-api-errors.conf"
+
+# Install the nginx snippet first: it is the only part with a live probe.
+BACKUP="$WORK/snippet.previous"
+HAD_SNIPPET=false
+if [[ -f $SNIPPET ]]; then cp -p "$SNIPPET" "$BACKUP"; HAD_SNIPPET=true; fi
+restore_snippet() {
+  if [[ $HAD_SNIPPET == true ]]; then cp -p "$BACKUP" "$SNIPPET"; else rm -f "$SNIPPET"; fi
+  # shellcheck disable=SC2086
+  $NGINX_TEST && $NGINX_RELOAD || true
+}
+install -d -m 0755 "$(dirname "$SNIPPET")"
+install -m 0644 "$WORK/nginx-api-errors.conf" "$SNIPPET.new"
+mv "$SNIPPET.new" "$SNIPPET"
+# shellcheck disable=SC2086
+if ! $NGINX_TEST; then restore_snippet; echo 'nginx rejected the new snippet; previous snippet restored.' >&2; exit 1; fi
+# shellcheck disable=SC2086
+$NGINX_RELOAD
+# A body over 256 KiB must get nginx's JSON 413 with the CORS headers a browser needs.
+code=$(head -c 300000 /dev/zero | curl -sS --proto '=https' --max-time 30 -o /dev/null -D "$WORK/probe.headers" -w '%{http_code}' \
+  -X POST -H 'Origin: https://publisle.xyz' -H 'Content-Type: application/json' --data-binary @- "$PUBLIC_API/pdf/compile" || true)
+if [[ $code != 413 ]] || ! grep -qi '^content-type: *application/json' "$WORK/probe.headers" || ! grep -qi '^access-control-allow-origin: *https://publisle.xyz' "$WORK/probe.headers"; then
+  restore_snippet
+  echo "The 413 probe failed (HTTP ${code:-none}). Check that the api.publisle.xyz server includes $SNIPPET. Previous snippet restored." >&2
+  exit 1
+fi
+
+for pair in "activate-release.sh:/usr/local/sbin/publisle-deploy" "publisle-receive:/usr/local/bin/publisle-receive"; do
+  source_file=${pair%%:*}
+  target=${pair#*:}
+  install -o root -g root -m 0755 "$WORK/$source_file" "$target.new"
+  mv "$target.new" "$target"
+done
+echo "Synchronized host policy from $SHA."

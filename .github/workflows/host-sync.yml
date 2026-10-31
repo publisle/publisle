@@ -1,0 +1,36 @@
+name: Host policy sync
+
+# Replaces the privileged deploy entry points and the nginx error snippet on the
+# VPS. It uses a different SSH key from the automatic app deployment, and its
+# environment requires a reviewer. The server fetches the files from GitHub at
+# this commit, which must be on main, so nothing is uploaded from the runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Configure this environment with required reviewers. It holds
+    # PDF_HOST_SYNC_KEY (secret) and PDF_HOST_SYNC_USER, PDF_DEPLOY_HOST and
+    # PDF_DEPLOY_HOST_KEY (variables).
+    environment: production-host
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Synchronize host policy
+        env:
+          PDF_DEPLOY_HOST: ${{ vars.PDF_DEPLOY_HOST }}
+          PDF_HOST_SYNC_USER: ${{ vars.PDF_HOST_SYNC_USER }}
+          PDF_HOST_SYNC_KEY: ${{ secrets.PDF_HOST_SYNC_KEY }}
+          PDF_DEPLOY_HOST_KEY: ${{ vars.PDF_DEPLOY_HOST_KEY }}
+        run: bash deploy/vps/host-sync.sh

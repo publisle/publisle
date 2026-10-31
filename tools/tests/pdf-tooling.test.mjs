@@ -116,13 +116,11 @@ test(
       "utf8",
     );
     const block = source.match(
-      /"\$VALIDATION\/verification\.json".*<<'JS'\n([\s\S]*?)\nJS/u,
+      /"\$1" "\$2" "\$UID_PUBLISLE" "\$3" <<'JS'\n([\s\S]*?)\nJS/u,
     )?.[1];
     assert(block, "Privileged report reader is present");
     // Execute the production reader up to its privileged write, in a subprocess.
-    const script = block.split(
-      "const path='/etc/publisle-native-pdf-verified.json'",
-    )[0];
+    const script = block.split("const path=process.argv[5]")[0];
     const directory = await mkdtemp(
       join(tmpdir(), "publisle-verification-test-"),
     );
@@ -205,3 +203,289 @@ test("binds Docker archive tags to the expected portable configuration digest", 
   ])
     assert.notEqual(inspect(entries).status, 0);
 });
+
+async function activator() {
+  const { readFile } = await import("node:fs/promises");
+  return readFile(
+    new URL("../../deploy/vps/activate-release.sh", import.meta.url),
+    "utf8",
+  );
+}
+
+test("activation points PDF_WORKER_IMAGE at the verified LaTeX image", async () => {
+  const source = await activator();
+  const writer = source.match(
+    /"\$IMAGE" "\$LATEX_IMAGE" <<'JS'\n([\s\S]*?)\nJS/u,
+  )?.[1];
+  assert(writer, "Environment writer receives both image IDs");
+  assert.match(writer, /PDF_NATIVE_WORKER_IMAGE:process\.argv\[2\]/u);
+  assert.match(writer, /PDF_WORKER_IMAGE:process\.argv\[3\]/u);
+  // server.mjs only enables an image that a matching report names, so the same
+  // activation must install that report and keep it in the rollback snapshot.
+  assert.match(
+    source,
+    /verification-latex\.json" "\$LATEX_IMAGE" \/etc\/publisle-pdf-verified\.json/u,
+  );
+  assert.match(
+    source,
+    /PDF_VERIFICATION_FILE:'\/etc\/publisle-pdf-verified\.json'/u,
+  );
+  assert.match(
+    source,
+    /cp -a \/etc\/publisle-pdf-verified\.json "\$BACKUP\/verification-latex\.json"/u,
+  );
+});
+
+test(
+  "root extraction refuses unsafe archives and accepts the release layout",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const { mkdtemp, writeFile, mkdir, rm, symlink, link, readFile } =
+      await import("node:fs/promises");
+    const { spawnSync } = await import("node:child_process");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const source = await activator();
+    const functions = source.match(
+      /# BEGIN safe_tar\n([\s\S]*?)# END safe_tar/u,
+    )?.[1];
+    assert(functions, "Archive validation is present");
+    const directory = await mkdtemp(join(tmpdir(), "publisle-safe-tar-"));
+    const run = (command, options = {}) =>
+      spawnSync("bash", ["-c", command], {
+        encoding: "utf8",
+        cwd: directory,
+        ...options,
+      });
+    const attempt = (archive, pattern, extract = false) => {
+      const destination = join(
+        directory,
+        `out-${Math.random().toString(36).slice(2)}`,
+      );
+      const script = `set -euo pipefail\n${functions}\nmkdir "$3"\n${extract ? 'safe_tar_extract "$1" "$2" "$3"' : 'safe_tar_check "$1" "$2"'}`;
+      const result = spawnSync(
+        "bash",
+        ["-c", script, "bash", archive, pattern, destination],
+        {
+          encoding: "utf8",
+        },
+      );
+      return { ...result, destination };
+    };
+    try {
+      await mkdir(join(directory, "source/deploy/vps/[slug]"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(directory, "source/deploy/vps/[slug]/+page.ts"),
+        "ok",
+      );
+      assert.equal(run("tar -cf good.tar source").status, 0);
+      const good = attempt(join(directory, "good.tar"), "^source(/.*)?$", true);
+      assert.equal(good.status, 0, good.stderr);
+      assert.equal(
+        await readFile(
+          join(good.destination, "source/deploy/vps/[slug]/+page.ts"),
+          "utf8",
+        ),
+        "ok",
+      );
+
+      await symlink("/etc/passwd", join(directory, "source/escape"));
+      run("tar -cf symlink.tar source");
+      assert.notEqual(
+        attempt(join(directory, "symlink.tar"), "^source(/.*)?$").status,
+        0,
+      );
+      await rm(join(directory, "source/escape"));
+
+      await link(
+        join(directory, "source/deploy/vps/[slug]/+page.ts"),
+        join(directory, "source/hard"),
+      );
+      run("tar -cf hardlink.tar source");
+      assert.notEqual(
+        attempt(join(directory, "hardlink.tar"), "^source(/.*)?$").status,
+        0,
+      );
+      await rm(join(directory, "source/hard"));
+
+      await writeFile(join(directory, "plain.txt"), "x");
+      run(`tar -P -cf absolute.tar "${join(directory, "plain.txt")}"`);
+      assert.notEqual(
+        attempt(join(directory, "absolute.tar"), "^.*$").status,
+        0,
+      );
+      run("tar -cf parent.tar --transform='s,^,../,' plain.txt");
+      assert.notEqual(attempt(join(directory, "parent.tar"), "^.*$").status, 0);
+      run("tar -cf nested.tar --transform='s,^,source/../../,' plain.txt");
+      assert.notEqual(attempt(join(directory, "nested.tar"), "^.*$").status, 0);
+      run("tar -cf outside.tar plain.txt");
+      assert.notEqual(
+        attempt(join(directory, "outside.tar"), "^source(/.*)?$").status,
+        0,
+      );
+      await writeFile(join(directory, "back\\slash"), "x");
+      run("tar -cf backslash.tar back\\\\slash");
+      assert.notEqual(
+        attempt(join(directory, "backslash.tar"), "^.*$").status,
+        0,
+      );
+      await writeFile(join(directory, "new\nline"), "x");
+      run("tar -cf newline.tar new*line");
+      assert.notEqual(
+        attempt(join(directory, "newline.tar"), "^.*$").status,
+        0,
+      );
+      // The deployment bundle has three fixed members and nothing else.
+      const bundle = "^(image\\.tar\\.gz|latex-image\\.tar\\.gz|source\\.tar)$";
+      await writeFile(join(directory, "image.tar.gz"), "x");
+      await writeFile(join(directory, "latex-image.tar.gz"), "x");
+      await writeFile(join(directory, "source.tar"), "x");
+      run("tar -cf bundle.tar image.tar.gz latex-image.tar.gz source.tar");
+      assert.equal(attempt(join(directory, "bundle.tar"), bundle).status, 0);
+      run("tar -cf extra.tar image.tar.gz plain.txt");
+      assert.notEqual(attempt(join(directory, "extra.tar"), bundle).status, 0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("activation requires a main commit and a release record written by the release job", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { createHash } = await import("node:crypto");
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const source = await activator();
+  const script = source.match(
+    /"\$PROVENANCE_COMPARE" "\$PROVENANCE_STATUSES" "\$IMAGE_ARCHIVE_SHA" "\$LATEX_ARCHIVE_SHA" "\$SOURCE_ARCHIVE_SHA" <<'JS'\n([\s\S]*?)\nJS/u,
+  )?.[1];
+  assert(script, "Provenance verifier is present");
+  const hashes = ["1", "2", "3"].map((digit) => digit.repeat(64));
+  const digest = createHash("sha256")
+    .update(`image=${hashes[0]}\nlatex=${hashes[1]}\nsource=${hashes[2]}\n`)
+    .digest("hex");
+  const record = {
+    context: "publisle-pdf-release",
+    state: "success",
+    creator: { login: "github-actions[bot]", type: "Bot" },
+    description: `publisle-pdf-release sha256:${digest}`,
+  };
+  const directory = await mkdtemp(join(tmpdir(), "publisle-provenance-"));
+  const verify = async (compare, statuses, archives = hashes) => {
+    await writeFile(join(directory, "compare.json"), JSON.stringify(compare));
+    await writeFile(join(directory, "statuses.json"), JSON.stringify(statuses));
+    return spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-",
+        join(directory, "compare.json"),
+        join(directory, "statuses.json"),
+        ...archives,
+      ],
+      { input: script, encoding: "utf8", timeout: 5000 },
+    ).status;
+  };
+  try {
+    for (const status of ["behind", "identical"])
+      assert.equal(await verify({ status }, [record]), 0);
+    // Not on main.
+    for (const status of ["ahead", "diverged"])
+      assert.notEqual(await verify({ status }, [record]), 0);
+    // No record, a failed record, or a record someone else wrote.
+    assert.notEqual(await verify({ status: "behind" }, []), 0);
+    assert.notEqual(
+      await verify({ status: "behind" }, [{ ...record, state: "failure" }]),
+      0,
+    );
+    assert.notEqual(
+      await verify({ status: "behind" }, [
+        { ...record, creator: { login: "someone", type: "User" } },
+      ]),
+      0,
+    );
+    // A swapped archive no longer matches the recorded digest.
+    for (const index of [0, 1, 2]) {
+      const swapped = [...hashes];
+      swapped[index] = "4".repeat(64);
+      assert.notEqual(await verify({ status: "behind" }, [record], swapped), 0);
+    }
+    // The newest record decides; an older matching record cannot be replayed.
+    assert.notEqual(
+      await verify({ status: "behind" }, [
+        {
+          ...record,
+          description: "publisle-pdf-release sha256:" + "9".repeat(64),
+        },
+        record,
+      ]),
+      0,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test(
+  "the deploy key and the host key can run only their fixed commands",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    const { spawnSync } = await import("node:child_process");
+    const receive = new URL(
+      "../../deploy/vps/publisle-receive",
+      import.meta.url,
+    ).pathname;
+    const sync = new URL("../../deploy/vps/publisle-host-sync", import.meta.url)
+      .pathname;
+    const sha = "a".repeat(40);
+    const run = (script, command) =>
+      spawnSync("bash", [script], {
+        env: { PATH: process.env.PATH, SSH_ORIGINAL_COMMAND: command },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+    for (const command of [
+      "",
+      "bash",
+      "sh -c id",
+      "status; id",
+      "stage",
+      `stage ${sha}; id`,
+      `stage ${sha} extra`,
+      `stage ${sha.toUpperCase()}`,
+      `activate ${"a".repeat(39)}`,
+      `activate $(id)`,
+      `cleanup ../${sha}`,
+      `sync ${sha}`,
+      `scp -t /tmp`,
+    ])
+      assert.equal(run(receive, command).status, 2, command);
+    assert.equal(run(receive, "status").status, 0);
+    for (const command of [
+      "",
+      "bash",
+      `sync ${sha}; id`,
+      `sync ${"a".repeat(39)}`,
+      `stage ${sha}`,
+    ])
+      assert.equal(run(sync, command).status, 2, command);
+    // Neither privileged entry point does anything without root.
+    const activate = new URL(
+      "../../deploy/vps/activate-release.sh",
+      import.meta.url,
+    ).pathname;
+    if (process.getuid() !== 0)
+      assert.notEqual(
+        spawnSync("bash", [activate, "stage", sha], { encoding: "utf8" })
+          .status,
+        0,
+      );
+  },
+);
