@@ -11,7 +11,7 @@
     "@publisle/core": "workspace:*",
     "@publisle/schema": "workspace:*",
     "@publisle/adapter-next": "workspace:*",
-    "next": "16.4.2",
+    "next": "16.4.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@types/react": "^19.0.0",
