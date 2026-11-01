@@ -22,7 +22,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build:examples",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "pnpm --filter @publisle/example-sveltekit exec svelte-kit sync && pnpm --filter @publisle/playground-svelte exec svelte-kit sync && eslint .",
     "test": "vitest run",
     "test:acceptance": "vitest run --config vitest.acceptance.config.ts",
     "test:conformance:p0": "node tools/p0-gate.ts",
