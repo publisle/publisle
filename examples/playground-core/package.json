@@ -29,6 +29,6 @@
     "@publisle/schema": "workspace:*",
     "@publisle/example-scene": "workspace:*",
     "@publisle/example-fourier": "workspace:*",
-    "mermaid": "12.1.0"
+    "mermaid": "12.2.0"
   }
 }
