@@ -223,6 +223,11 @@ test(
       assert.equal(wide.pdf.subarray(0, 8).toString(), "%PDF-2.0");
       const wideText = await extract("wide.pdf", wide);
       assert(!wideText.includes("\uFFFD"), wideText);
+      const wideCompact = wideText.replace(/\s+/gu, "");
+      for (let index = 1; index <= 12; index += 1) {
+        assert(wideCompact.includes(`Columnheading${index}`), wideText);
+        assert(wideCompact.includes(`value-${index}`), wideText);
+      }
       assert.deepEqual(await readdir(jobs), []);
     } finally {
       await rm(temporary, { recursive: true, force: true });

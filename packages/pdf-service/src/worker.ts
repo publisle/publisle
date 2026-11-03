@@ -119,6 +119,29 @@ function replaceFigures(
   };
 }
 
+/** Names the first glyph LuaLaTeX could not draw, without returning the TeX log. */
+export function missingGlyphFailure(log: string): Error | undefined {
+  const missingGlyph =
+    /Missing character: There is no (.+?) \((U\+[0-9A-F]+)\) in font/u.exec(
+      log,
+    );
+  if (!missingGlyph) return undefined;
+  const character = missingGlyph[1] ?? "";
+  const codePoint = missingGlyph[2] ?? "";
+  return Object.assign(
+    new Error(
+      `LuaLaTeX cannot render ${character} (${codePoint}); remove it or use the fast engine.`,
+    ),
+    {
+      publicMessage: true,
+      code: "missing-glyph",
+      diagnostics: [
+        { code: "missing-glyph", message: `${character} ${codePoint}` },
+      ],
+    },
+  );
+}
+
 export async function convertAssets(
   assets: Asset[],
   inputDirectory: string,
@@ -416,8 +439,10 @@ async function main(): Promise<void> {
   ].length;
   timings["workerMs"] = performance.now() - started;
   const log = await readFile(join(buildDirectory, "manuscript.log"), "utf8");
+  const missingGlyph = missingGlyphFailure(log);
+  if (missingGlyph) throw missingGlyph;
   if (
-    /Missing character:|undefined references|Citation .* undefined|Reference .* undefined/iu.test(
+    /undefined references|Citation .* undefined|Reference .* undefined/iu.test(
       log,
     )
   )
@@ -460,11 +485,15 @@ if (
     ).catch(() => "");
     const outOfMemory = /^oom_kill [1-9][0-9]*$/mu.test(memoryEvents);
     const preparing = process.argv[2] === "prepare";
+    const publicFailure =
+      error instanceof Error &&
+      (error as { publicMessage?: boolean }).publicMessage === true;
     // Compilation logs may include host paths or TeX internals; never return them.
     const message =
-      preparing && error instanceof Error
+      (preparing || publicFailure) && error instanceof Error
         ? error.message.slice(0, 300)
         : "PDF compilation failed. Check figures, math, citations, and document size.";
+    const publicCode = (error as { code?: string }).code;
     process.stdout.write(
       JSON.stringify({
         ok: false,
@@ -472,7 +501,9 @@ if (
           ? "resource-limit"
           : preparing
             ? "invalid-document"
-            : "compilation-failed",
+            : publicCode === "missing-glyph"
+              ? "missing-glyph"
+              : "compilation-failed",
         diagnostics: (error as { diagnostics?: unknown }).diagnostics,
         message: outOfMemory
           ? "This document exceeds the PDF service memory budget."

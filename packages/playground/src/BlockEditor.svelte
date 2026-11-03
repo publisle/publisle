@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Block, BlockId } from "@publisle/schema";
   import JsonField from "./JsonField.svelte";
-  import MathEditor from "./MathEditor.svelte";
   import {
     appendSegment,
     blockFields,
@@ -47,6 +46,19 @@
 
   let addKind = $state("text");
   let expandedMath = $state<number | null>(null);
+  let MathEditor = $state<
+    typeof import("./MathEditor.svelte").default | undefined
+  >(undefined);
+  $effect(() => {
+    if (expandedMath === null || MathEditor) return;
+    let active = true;
+    void import("./MathEditor.svelte").then((module) => {
+      if (active) MathEditor = module.default;
+    });
+    return () => {
+      active = false;
+    };
+  });
 
   const label = $derived(blockLabels(extensions)[block.type] ?? block.type);
   const data = $derived(
@@ -152,6 +164,7 @@
                 </button>
                 {#if segment.kind === "inlineMath" && expandedMath === segment.index}
                   <div class="segment__editor">
+                    {#if MathEditor}
                     <MathEditor
                       compact
                       collapsible
@@ -165,6 +178,9 @@
                           value,
                         )}
                     />
+                    {:else}
+                      <p>Loading math editor…</p>
+                    {/if}
                   </div>
                 {:else}
                   <textarea

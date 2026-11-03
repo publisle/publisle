@@ -332,22 +332,19 @@ export function renderLatexArticle(
               .join(" & ") + " \\\\",
         )
         .join("\n");
-      // Eight or more equal X columns leave about 18pt per cell on the
-      // article measure, so a normal word paints into the next cell.
-      // Content-sized columns keep those cells apart. Narrower tables stay
-      // on tabularx, which is what the alignment fixtures assert.
-      const wide = width >= 8;
+      // Six or more equal X columns are narrower than a normal word.
+      // A smaller font and wrapping columns keep the table inside the measure.
+      // Content-sized columns ran past the page.
+      const wide = width >= 6;
       const columns = Array.from({ length: width }, (_, index) => {
         const align = block.align?.[index];
-        if (wide)
-          return align === "center" ? "c" : align === "right" ? "r" : "l";
         const command =
-          align === "left"
-            ? "raggedright"
-            : align === "center"
-              ? "centering"
-              : align === "right"
-                ? "raggedleft"
+          align === "center"
+            ? "centering"
+            : align === "right"
+              ? "raggedleft"
+              : align === "left" || wide
+                ? "raggedright"
                 : undefined;
         return command ? `>{\\${command}\\arraybackslash}X` : "X";
       }).join("");
@@ -357,12 +354,17 @@ export function renderLatexArticle(
         : label
           ? `\\refstepcounter{table}${label}\n`
           : "";
-      const tabular = wide
-        ? `\\begin{tabular}{${columns}}`
-        : `\\begin{tabularx}{\\columnwidth}{${columns}}`;
-      const endTabular = wide ? "\\end{tabular}" : "\\end{tabularx}";
+      const fit =
+        width >= 10
+          ? "\\scriptsize\\setlength{\\tabcolsep}{1.5pt}"
+          : width >= 8
+            ? "\\footnotesize\\setlength{\\tabcolsep}{2pt}"
+            : width >= 6
+              ? "\\small\\setlength{\\tabcolsep}{3pt}"
+              : "";
+      const tabular = `\\begin{tabularx}{\\columnwidth}{${columns}}`;
       target.push(
-        `\\begin{table}[!htbp]\n${captionLine}\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}${tabular}\n\\hline\n${rows}\n\\hline\n${endTabular}\n\\end{table}`,
+        `\\begin{table}[!htbp]\n${captionLine}\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}${fit ? `{${fit}%\n` : ""}${tabular}\n\\hline\n${rows}\n\\hline\n\\end{tabularx}${fit ? "}" : ""}\n\\end{table}`,
       );
     } else if (block.kind === "list") {
       const renderList = (
@@ -417,7 +419,10 @@ export function renderLatexArticle(
   const unicodePreamble =
     engine === "lualatex"
       ? `\\usepackage{fontspec}
-\\setmainfont{${fonts.latin}}
+\\IfFontExistsTF{Noto Emoji}{%
+\\directlua{luaotfload.add_fallback("publisleemoji", {"NotoEmoji:mode=harf;"})}%
+\\setmainfont{${fonts.latin}}[RawFeature={fallback=publisleemoji}]%
+}{\\setmainfont{${fonts.latin}}}
 \\usepackage{unicode-math}
 \\setmathfont{${fonts.math}}
 \\usepackage${needsArabic ? "[bidi=basic]" : "[english]"}{babel}

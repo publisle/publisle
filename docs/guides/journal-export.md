@@ -162,17 +162,18 @@ build; other scripts require suitable font configuration and validation.
 ## Known limitations
 
 The fast engine (`rust`, labeled "Fast · experimental" in the playground) is
-experimental. It is the better choice for a wide table: LuaLaTeX keeps eight or
-more columns from painting on top of each other by sizing each cell to its
-content, and that table can run past the text block. The fast engine keeps the
-table on the page at a readable scale.
+experimental. Wide tables previously ran past the page. LuaLaTeX and pdfLaTeX
+now keep six or more columns inside the measure by setting them in a smaller
+font. The fast engine remains the better choice when a table is still wider
+than that measure.
 
-An emoji does not become a replacement character. LuaLaTeX uses TeX Gyre Termes,
-which has no emoji glyph, so the build fails instead of substituting U+FFFD.
-The fast engine in publisle-pdf 0.6.3 keeps the emoji. No emoji font is shipped
-with the LuaLaTeX compiler.
+LuaLaTeX fails the build when TeX Gyre Termes has no glyph for a character, and
+the PDF service names that character. A monochrome Noto Emoji fallback is pinned
+for LuaLaTeX and the fast engine, so an emoji is drawn from that font instead of
+becoming U+FFFD. pdfLaTeX still rejects non-ASCII prose.
+
 The Arabic profile chooses Arabic page flow; an English publisher profile keeps
-its own layout even with mixed text. pdfLaTeX rejects non-ASCII prose.
+its own layout even with mixed text.
 
 Assets must be local PDF/PNG/JPEG files inside the manuscript directory. Remote
 figures, SVGs, and symlinks escaping that directory are refused. Builds have a

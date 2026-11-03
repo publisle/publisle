@@ -4,6 +4,11 @@ COPY deploy/vps/runtime/package.json deploy/vps/runtime/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 FROM ghcr.io/voidreg/publisle-compiler@sha256:224d31b5294c99d0e03ec5507b2f9430f29ee97cc2dc37713c9b7ddde163b802
+# Monochrome Noto Emoji (OFL), pinned to google/fonts b979dba. Variable face, default Regular.
+ADD --checksum=sha256:de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551 \
+    https://github.com/google/fonts/raw/b979dba422e445492b0eb9951ac52ee0b4d648c3/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf \
+    /usr/local/share/fonts/NotoEmoji-Regular.ttf
+RUN fc-cache -f
 COPY --from=runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=runtime /runtime/node_modules /app/node_modules
 COPY deploy/vps/warm-fonts.tex /tmp/font-warmup/manuscript.tex

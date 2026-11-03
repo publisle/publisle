@@ -25,8 +25,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:packages
       - run: node tools/native-consumer-proof.mjs
-        env:
-          PNPM_CLI_PATH: ${{ steps.pnpm.outputs.dest }}/node_modules/pnpm/bin/pnpm.cjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:

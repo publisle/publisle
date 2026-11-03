@@ -11,11 +11,10 @@ import { compileLatexPackage } from "../src/node.ts";
 
 const headings = Array.from(
   { length: 12 },
-  (_, index) => `Aa${String(index + 1).padStart(2, "0")}`,
+  (_, index) => `Column heading ${String(index + 1)}`,
 );
 
-it("keeps a caption-less 12-column LuaLaTeX table from painting cells on top of each other", async () => {
-  const parsed = fromMarkdown(`---
+const markdown = `---
 title: Wide table
 authors:
   - name: Ada
@@ -23,52 +22,56 @@ authors:
 
 | ${headings.join(" | ")} |
 | ${headings.map(() => "---").join(" | ")} |
-| ${headings.map((_, index) => `v${String(index + 1)}`).join(" | ")} |
-`);
+| ${headings.map((_, index) => `value-${String(index + 1)}`).join(" | ")} |
+`;
+
+it("fits a caption-less 12-column table on LuaLaTeX and pdfLaTeX", async () => {
+  const parsed = fromMarkdown(markdown);
   if (!parsed.document) throw new Error("Invalid wide-table fixture");
-  const source = createLatexPackage(parsed.document, {
-    template,
-    engine: "lualatex",
-    pdfUa: false,
-  });
-  const tex = source.files["manuscript.tex"] ?? "";
-  expect(tex).toContain("\\begin{tabular}{llllllllllll}");
-  expect(tex).not.toContain("\\caption");
-  const compiled = await compileLatexPackage(source, {
-    compiler: "native",
-    sourceDirectory: process.cwd(),
-  });
-  const directory = await mkdtemp(join(tmpdir(), "publisle-wide-table-"));
-  try {
-    const path = join(directory, "manuscript.pdf");
-    await writeFile(path, compiled.pdf);
-    const { stdout } = await promisify(execFile)("pdftotext", [
-      "-bbox",
-      path,
-      "-",
-    ]);
-    expect(stdout).not.toMatch(/Table\s+\d+:/u);
-    const word = (value: string) => {
-      const attributes = new RegExp(
-        `<word\\b([^>]*)>${value}</word>`,
-        "u",
-      ).exec(stdout)?.[1];
-      if (!attributes) throw new Error(`Missing PDF word: ${value}`);
-      const coordinate = (key: string) => {
-        const number = new RegExp(`${key}="([0-9.]+)"`, "u").exec(
-          attributes,
-        )?.[1];
-        if (!number) throw new Error(`Missing ${key} for ${value}`);
-        return Number(number);
-      };
-      return { left: coordinate("xMin"), right: coordinate("xMax") };
-    };
-    for (let index = 0; index < headings.length - 1; index += 1) {
-      const current = word(headings[index] ?? "");
-      const next = word(headings[index + 1] ?? "");
-      expect(current.right).toBeLessThanOrEqual(next.left + 0.5);
+  for (const engine of ["lualatex", "pdflatex"] as const) {
+    const source = createLatexPackage(parsed.document, {
+      template,
+      engine,
+      pdfUa: false,
+    });
+    const tex = source.files["manuscript.tex"] ?? "";
+    expect(tex, engine).toContain(
+      "\\scriptsize\\setlength{\\tabcolsep}{1.5pt}",
+    );
+    expect(tex, engine).toContain("\\begin{tabularx}{\\columnwidth}{");
+    expect(tex, engine).not.toContain("\\caption");
+    const compiled = await compileLatexPackage(source, {
+      compiler: "native",
+      sourceDirectory: process.cwd(),
+    });
+    const wide = compiled.diagnostics
+      .filter((item) => item.code === "latex-layout-overflow")
+      .map((item) => / \(([\d.]+)pt too wide\)/u.exec(item.message)?.[1])
+      .filter((value): value is string => value !== undefined)
+      .map(Number);
+    expect(
+      wide.every((points) => points <= 10),
+      `${engine} overfull ${wide.join(", ")}`,
+    ).toBe(true);
+    const directory = await mkdtemp(join(tmpdir(), "publisle-wide-table-"));
+    try {
+      const path = join(directory, "manuscript.pdf");
+      await writeFile(path, compiled.pdf);
+      const { stdout } = await promisify(execFile)("pdftotext", [
+        "-bbox",
+        path,
+        "-",
+      ]);
+      expect(stdout, engine).not.toMatch(/Table\s+\d+:/u);
+      const page = /<page\b([^>]*)>/u.exec(stdout)?.[1] ?? "";
+      const pageWidth = Number(/width="([0-9.]+)"/u.exec(page)?.[1]);
+      expect(pageWidth, engine).toBeGreaterThan(500);
+      const rights = [...stdout.matchAll(/xMax="([0-9.]+)"/gu)].map((match) =>
+        Number(match[1]),
+      );
+      expect(Math.max(...rights), engine).toBeLessThanOrEqual(pageWidth - 36);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
   }
 });

@@ -281,6 +281,7 @@ it("activates the FFT butterfly by touch after opening and restoring the tutoria
       await waitForPreview(page);
       await page.getByRole("tab", { name: /^Preview/ }).tap();
       const preview = page.getByRole("region", { name: "Compiled preview" });
+      await waitForPreview(page);
       await preview
         .getByRole("button", { name: "Explore Eight-point FFT butterfly" })
         .tap();
@@ -363,6 +364,7 @@ it("contains Quickstart code on mobile and keeps the toolbar above the scrolling
         await page.getByRole("tab", { name: /^Preview/ }).click();
         expect(await preview.isVisible()).toBe(true);
         expect(await editor.isVisible()).toBe(false);
+        await waitForPreview(page);
         await preview
           .getByRole("button", { name: "Explore Eight-point FFT butterfly" })
           .click();
@@ -379,6 +381,7 @@ it("contains Quickstart code on mobile and keeps the toolbar above the scrolling
           .getByRole("textbox", { name: "Markdown source" })
           .fill("# Mobile edit\n\nPhone edits survive view changes.");
         await page.getByRole("tab", { name: /^Preview/ }).click();
+        await waitForPreview(page);
         expect(await preview.innerText()).toContain(
           "Phone edits survive view changes.",
         );
@@ -422,6 +425,7 @@ it("contains docs code and aligns Research equation numbers on small and large s
         await waitForPreview(page);
         if (width < 1024)
           await page.getByRole("tab", { name: /^Preview/ }).click();
+        await waitForPreview(page);
         const preview = page.getByRole("region", { name: "Compiled preview" });
         expect(await preview.innerText()).not.toMatch(
           /(Equation|Figure|Table) \1 /u,

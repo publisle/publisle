@@ -302,6 +302,7 @@ export async function compileLatexPackage(
         `LaTeX output has missing glyphs or unresolved references:\n${log
           .split("\n")
           .filter((line) => /Missing character:|undefined/iu.test(line))
+          .slice(0, 3)
           .join("\n")}`,
       );
     const diagnostics = [...source.diagnostics];

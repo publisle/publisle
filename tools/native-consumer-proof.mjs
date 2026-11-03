@@ -50,7 +50,10 @@ function cliPath(name) {
   );
 }
 const run = (command, args, cwd = root) => {
-  if (command === "npm" || command === "pnpm") {
+  // Use the pnpm already selected on PATH. Resolving the shim to its
+  // node_modules copy can execute the action's bootstrap pnpm, which then
+  // refuses to switch to the pinned version.
+  if (command === "npm") {
     args = [cliPath(command), ...args];
     command = process.execPath;
   }
@@ -59,6 +62,7 @@ const run = (command, args, cwd = root) => {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
     maxBuffer: 16 * 1024 * 1024,
+    shell: command === "pnpm" && process.platform === "win32",
   }).trim();
 };
 const manifests = new Map();
