@@ -60,8 +60,7 @@ describe("shared LaTeX table alignment", () => {
 
   it("omits an empty caption and still numbers a labeled table", () => {
     const source = article().blocks.find((block) => block.kind === "table");
-    if (!source || source.kind !== "table")
-      throw new Error("Missing table fixture");
+    if (!source) throw new Error("Missing table fixture");
     const tex =
       template.render(article(), context).files["manuscript.tex"] ?? "";
     expect(tex).toContain("\\begin{table}");
@@ -131,7 +130,10 @@ describe("shared LaTeX table alignment", () => {
   });
 
   it("uses a small font once a table reaches six columns", () => {
-    const headings = Array.from({ length: 6 }, (_, index) => `C${index + 1}`);
+    const headings = Array.from(
+      { length: 6 },
+      (_, index) => `C${String(index + 1)}`,
+    );
     const rows = [headings, headings.map(() => "v")].map((row) =>
       row.map((value) => [{ type: "text" as const, value }]),
     );

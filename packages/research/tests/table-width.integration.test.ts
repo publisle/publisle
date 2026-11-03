@@ -11,7 +11,7 @@ import { compileLatexPackage } from "../src/node.ts";
 
 const headings = Array.from(
   { length: 12 },
-  (_, index) => `Column heading ${index + 1}`,
+  (_, index) => `Column heading ${String(index + 1)}`,
 );
 
 const markdown = `---
@@ -22,7 +22,7 @@ authors:
 
 | ${headings.join(" | ")} |
 | ${headings.map(() => "---").join(" | ")} |
-| ${headings.map((_, index) => `value-${index + 1}`).join(" | ")} |
+| ${headings.map((_, index) => `value-${String(index + 1)}`).join(" | ")} |
 `;
 
 it("fits a caption-less 12-column table on LuaLaTeX and pdfLaTeX", async () => {
@@ -35,7 +35,9 @@ it("fits a caption-less 12-column table on LuaLaTeX and pdfLaTeX", async () => {
       pdfUa: false,
     });
     const tex = source.files["manuscript.tex"] ?? "";
-    expect(tex, engine).toContain("\\scriptsize\\setlength{\\tabcolsep}{1.5pt}");
+    expect(tex, engine).toContain(
+      "\\scriptsize\\setlength{\\tabcolsep}{1.5pt}",
+    );
     expect(tex, engine).toContain("\\begin{tabularx}{\\columnwidth}{");
     expect(tex, engine).not.toContain("\\caption");
     const compiled = await compileLatexPackage(source, {
