@@ -22,7 +22,7 @@
   }
 </script>
 
-<div>
+<div class="json-field">
   <textarea
     rows="6"
     aria-label={label}

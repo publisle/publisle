@@ -332,8 +332,15 @@ export function renderLatexArticle(
               .join(" & ") + " \\\\",
         )
         .join("\n");
+      // Eight or more equal X columns leave about 18pt per cell on the
+      // article measure, so a normal word paints into the next cell.
+      // Content-sized columns keep those cells apart. Narrower tables stay
+      // on tabularx, which is what the alignment fixtures assert.
+      const wide = width >= 8;
       const columns = Array.from({ length: width }, (_, index) => {
         const align = block.align?.[index];
+        if (wide)
+          return align === "center" ? "c" : align === "right" ? "r" : "l";
         const command =
           align === "left"
             ? "raggedright"
@@ -344,8 +351,18 @@ export function renderLatexArticle(
                 : undefined;
         return command ? `>{\\${command}\\arraybackslash}X` : "X";
       }).join("");
+      const captionText = take(block.caption ?? []);
+      const captionLine = captionText.trim()
+        ? `\\caption{${captionText}}${label}\n`
+        : label
+          ? `\\refstepcounter{table}${label}\n`
+          : "";
+      const tabular = wide
+        ? `\\begin{tabular}{${columns}}`
+        : `\\begin{tabularx}{\\columnwidth}{${columns}}`;
+      const endTabular = wide ? "\\end{tabular}" : "\\end{tabularx}";
       target.push(
-        `\\begin{table}[!htbp]\n\\caption{${take(block.caption ?? [])}}${label}\n\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}\\begin{tabularx}{\\columnwidth}{${columns}}\n\\hline\n${rows}\n\\hline\n\\end{tabularx}\n\\end{table}`,
+        `\\begin{table}[!htbp]\n${captionLine}\\centering\n${pdfStandard ? `\\tagpdfsetup{table/header-rows={${Array.from({ length: block.headerRows ?? 0 }, (_, index) => String(index + 1)).join(",")}}}\n` : ""}${tabular}\n\\hline\n${rows}\n\\hline\n${endTabular}\n\\end{table}`,
       );
     } else if (block.kind === "list") {
       const renderList = (

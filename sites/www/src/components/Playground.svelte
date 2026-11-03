@@ -556,12 +556,12 @@ PDF export works out of the box: this sample already carries a title and author.
     <details class="rounded-xl border border-line bg-surface p-3">
       <summary class="cursor-pointer text-sm font-medium">PDF options</summary>
       <div class="grid gap-3 pt-3 sm:grid-cols-2">
-        <div class="grid gap-1 text-sm"><label for="pdf-template">PDF layout</label><select id="pdf-template" class="rounded border border-line bg-bg p-2" bind:value={pdfTemplate} onchange={selectPdfTemplate} disabled={pdfBusy}>{#each pdfTemplates as template}<option value={template.id}>{template.label}</option>{/each}</select></div>
-        <div class="grid gap-1 text-sm"><label for="pdf-engine">PDF engine</label><select id="pdf-engine" class="rounded border border-line bg-bg p-2" bind:value={pdfEngine} disabled={pdfBusy}>{#each selectedPdfTemplate?.engines ?? [] as engine}<option value={engine}>{engineLabels[engine] ?? engine}</option>{/each}</select></div>
-        <label class="grid gap-1 text-sm">Paper title<input class="rounded border border-line bg-bg p-2" bind:value={pdfTitle} placeholder="Use document metadata" maxlength="500" /></label>
-        <label class="grid gap-1 text-sm">Authors (separated by semicolons)<input class="rounded border border-line bg-bg p-2" bind:value={pdfAuthors} placeholder="Use document metadata" maxlength="2000" /></label>
-        <label class="grid gap-1 text-sm">Affiliation for entered authors<input class="rounded border border-line bg-bg p-2" bind:value={pdfAffiliation} maxlength="500" /></label>
-        {#if pdfTemplate === "acm-journal"}<label class="grid gap-1 text-sm">Affiliation country<input class="rounded border border-line bg-bg p-2" bind:value={pdfCountry} maxlength="100" /></label>{/if}
+        <div class="grid min-w-0 gap-1.5 text-sm"><label for="pdf-template">PDF layout</label><select id="pdf-template" class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfTemplate} onchange={selectPdfTemplate} disabled={pdfBusy}>{#each pdfTemplates as template}<option value={template.id}>{template.label}</option>{/each}</select></div>
+        <div class="grid min-w-0 gap-1.5 text-sm"><label for="pdf-engine">PDF engine</label><select id="pdf-engine" class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfEngine} disabled={pdfBusy}>{#each selectedPdfTemplate?.engines ?? [] as engine}<option value={engine}>{engineLabels[engine] ?? engine}</option>{/each}</select></div>
+        <label class="grid min-w-0 gap-1.5 text-sm">Paper title<input class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfTitle} placeholder="Use document metadata" maxlength="500" /></label>
+        <label class="grid min-w-0 gap-1.5 text-sm sm:col-span-2">Authors (separated by semicolons)<input class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfAuthors} placeholder="Use document metadata" maxlength="2000" /></label>
+        <label class="grid min-w-0 gap-1.5 text-sm">Affiliation for entered authors<input class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfAffiliation} maxlength="500" /></label>
+        {#if pdfTemplate === "acm-journal"}<label class="grid min-w-0 gap-1.5 text-sm">Affiliation country<input class="w-full min-w-0 rounded border border-line bg-bg p-2" bind:value={pdfCountry} maxlength="100" /></label>{/if}
       </div>
       <p class="pt-2 text-xs text-muted">The current document and its referenced public images are sent for compilation. Interactive blocks use readable fallbacks. Processing files are deleted after the request. Export time depends on the document and selected layout; you can cancel while it runs.</p>
     </details>

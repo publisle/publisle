@@ -248,7 +248,7 @@
             {spec.label}
           </label>
         {:else if spec.kind === "select"}
-          <label class="field">
+          <label class="field field--short">
             {spec.label}
             <select
               value={plainValue(spec)}
@@ -284,7 +284,7 @@
             {#if spec.hint}<small class="muted">{spec.hint}</small>{/if}
           </label>
         {:else}
-          <label class="field">
+          <label class="field field--short">
             {spec.label}
             <input
               type={spec.kind === "number" ? "number" : "text"}

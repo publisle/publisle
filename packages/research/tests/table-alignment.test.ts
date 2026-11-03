@@ -57,4 +57,74 @@ describe("shared LaTeX table alignment", () => {
       ],
     ).toContain("{X>{\\raggedleft\\arraybackslash}XX}");
   });
+
+  it("omits an empty caption and still numbers a labeled table", () => {
+    const source = article().blocks.find((block) => block.kind === "table");
+    if (!source || source.kind !== "table")
+      throw new Error("Missing table fixture");
+    const tex =
+      template.render(article(), context).files["manuscript.tex"] ?? "";
+    expect(tex).toContain("\\begin{table}");
+    expect(tex).not.toContain("\\caption");
+    const render = (
+      table: Extract<Article["blocks"][number], { kind: "table" }>,
+    ) =>
+      template.render(
+        {
+          title: "Alignment",
+          authors: ["Ada"],
+          entries: [],
+          losses: [],
+          subjects: [],
+          blocks: [table],
+        },
+        context,
+      ).files["manuscript.tex"] ?? "";
+    const labeled = render({ ...source, label: "results" });
+    expect(labeled).toContain("\\refstepcounter{table}\\label{results}");
+    expect(labeled).not.toContain("\\caption");
+    expect(
+      render({
+        ...source,
+        caption: [{ type: "text", value: "Measured values" }],
+      }),
+    ).toContain("\\caption{Measured values}");
+  });
+
+  it("uses content-sized columns once a table reaches eight columns", () => {
+    const headings = Array.from(
+      { length: 12 },
+      (_, index) => `Aa${String(index + 1).padStart(2, "0")}`,
+    );
+    const rows = [
+      headings,
+      headings.map((_, index) => `v${String(index + 1)}`),
+    ].map((row) => row.map((value) => [{ type: "text" as const, value }]));
+    const tex =
+      template.render(
+        {
+          title: "Wide",
+          authors: ["Ada"],
+          entries: [],
+          losses: [],
+          subjects: [],
+          blocks: [
+            {
+              kind: "table",
+              abstract: false,
+              headerRows: 1,
+              align: ["center", "right"],
+              rows,
+            },
+          ],
+        },
+        context,
+      ).files["manuscript.tex"] ?? "";
+    expect(tex).toContain("\\begin{tabular}{crllllllllll}");
+    expect(tex).not.toContain("XXXXXXXXXXXX");
+    expect(tex).toContain("\\textbf{Aa01}");
+    expect(tex).toContain("\\textbf{Aa12}");
+    expect(tex).not.toContain("\\caption");
+    expect(tex).not.toContain("\\begin{tabularx}");
+  });
 });

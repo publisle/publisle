@@ -480,7 +480,7 @@
 }
 
 .block-editor__header {
-  @apply mb-3 flex flex-wrap items-center justify-between gap-2;
+  @apply mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2;
 }
 
 .block-editor__actions {
@@ -491,19 +491,30 @@
   @apply rounded border border-line px-2 py-0.5 text-xs hover:border-accent hover:text-accent;
 }
 
+/* Short controls (`.field--short`) pair up from `sm`; textareas, segment
+   fieldsets, JSON, checkboxes and the math editor span the full row. */
 .block-editor__body {
-  @apply flex flex-col gap-3;
+  @apply grid grid-cols-1 gap-3 sm:grid-cols-2;
+}
+
+.block-editor__body > * {
+  @apply min-w-0 sm:col-span-full;
+}
+
+.block-editor__body > .field--short {
+  @apply sm:col-span-1;
 }
 
 .field {
-  @apply flex flex-col gap-1 text-sm;
+  @apply flex flex-col gap-1.5 text-sm;
 }
 
 .field > select,
 .field > input,
 .field > textarea,
-.field--segments input,
-.field--segments textarea {
+.field--segments > .segment > select,
+.field--segments > .segment > input,
+.field--segments > .segment > textarea {
   @apply rounded border border-line bg-input px-2 py-1 font-mono text-xs;
 }
 
@@ -520,8 +531,51 @@
   @apply m-0 border-0 p-0;
 }
 
+.field--segments {
+  @apply flex min-w-0 flex-col gap-2 rounded-md border border-line p-3;
+}
+
+.field--segments > legend {
+  @apply px-1 text-xs font-medium text-muted;
+}
+
 .segment {
-  @apply flex items-center gap-2;
+  @apply flex items-center gap-x-2 gap-y-2;
+}
+
+/* Payload JSON and field-level JSON disclosures. */
+.payload-json,
+.field--json {
+  @apply min-w-0 rounded-md border border-line p-3 text-sm;
+}
+
+.payload-json > summary,
+.field--json > summary {
+  @apply cursor-pointer text-xs font-medium text-muted hover:text-accent;
+}
+
+.json-field {
+  @apply mt-3 flex min-w-0 flex-col gap-2;
+}
+
+.json-field > textarea {
+  @apply block w-full min-w-0 resize-y rounded border border-line bg-input px-2 py-1 font-mono text-xs;
+}
+
+.json-field > button {
+  @apply self-start rounded border border-line px-2 py-0.5 text-xs hover:border-accent hover:text-accent;
+}
+
+.json-field > [role="alert"] {
+  @apply m-0 text-xs text-danger;
+}
+
+.math-editor__fields {
+  @apply items-center gap-x-4 gap-y-3;
+}
+
+.math-editor__fields > .field:not(.field--check) {
+  @apply min-w-0 flex-1 basis-56;
 }
 
 .segment__label {
@@ -554,7 +608,8 @@ main p a {
 .segment__editor {
   min-width: 0;
 }
-.field > input,
+/* Checkboxes keep their fixed size (`.field--check > input`). */
+.field > input:not([type="checkbox"]),
 .field > textarea,
 .field > select,
 .segment > input,
@@ -566,8 +621,10 @@ main p a {
 .segment > textarea {
   flex: 1;
 }
+/* Chips size to their text ("Footnote reference" stays on one line) and only
+   wrap for unusually long labels such as link URLs. */
 .segment__chip {
-  max-width: 7rem;
+  max-width: 12rem;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -575,8 +632,13 @@ main p a {
   .block-editor {
     padding: 0.75rem;
   }
+  /* Row one: chip + remove button. Row two: the editor. */
   .segment {
     flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .segment__chip {
+    max-width: calc(100% - 2.75rem);
   }
   .segment > input,
   .segment > textarea,

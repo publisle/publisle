@@ -158,6 +158,19 @@ Fontconfig, and the fonts listed by `doctor`. Defaults are TeX Gyre Termes,
 PakType Naskh Basic, FandolSong and TeX Gyre Termes Math. LuaLaTeX shapes Arabic,
 selects Han fonts and renders mathematical notation. Missing glyphs fail the
 build; other scripts require suitable font configuration and validation.
+
+## Known limitations
+
+The fast engine (`rust`, labeled "Fast · experimental" in the playground) is
+experimental. It is the better choice for a wide table: LuaLaTeX keeps eight or
+more columns from painting on top of each other by sizing each cell to its
+content, and that table can run past the text block. The fast engine keeps the
+table on the page at a readable scale.
+
+An emoji does not become a replacement character. LuaLaTeX uses TeX Gyre Termes,
+which has no emoji glyph, so the build fails instead of substituting U+FFFD.
+The fast engine in publisle-pdf 0.6.3 keeps the emoji. No emoji font is shipped
+with the LuaLaTeX compiler.
 The Arabic profile chooses Arabic page flow; an English publisher profile keeps
 its own layout even with mixed text. pdfLaTeX rejects non-ASCII prose.
 

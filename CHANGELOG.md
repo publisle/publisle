@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Omit an empty LuaLaTeX table caption, so a Markdown table no longer prints
+  "Table 1:". Tables with eight or more columns use content-sized columns, so
+  the cells no longer paint on top of each other.
+- Give playground block options and PDF options room for their labels, so
+  checkboxes, inline math, and JSON fields no longer collide with their text.
 - Require Astro 7.2.8 or newer within Astro 7 in the Astro adapter and example,
   resolving the reported Astro advisories and dropping Astro 6 support.
 - Prepare independently versioned npm releases with Changesets and compatible
