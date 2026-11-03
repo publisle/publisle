@@ -2,9 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-03
+
 - Omit an empty LuaLaTeX table caption, so a Markdown table no longer prints
-  "Table 1:". Tables with eight or more columns use content-sized columns, so
-  the cells no longer paint on top of each other.
+  "Table 1:". Tables with six or more columns stay inside the measure in a
+  smaller font, instead of running past the page.
+- Name the character LuaLaTeX cannot render, and draw emoji from monochrome
+  Noto Emoji on LuaLaTeX and the fast engine.
+- Defer the playground math editor, symbol palette, schematic island, and
+  article preview until they are on screen, so a phone does not compile the
+  preview during the first paint.
 - Give playground block options and PDF options room for their labels, so
   checkboxes, inline math, and JSON fields no longer collide with their text.
 - Require Astro 7.2.8 or newer within Astro 7 in the Astro adapter and example,

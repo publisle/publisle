@@ -91,7 +91,7 @@ describe("shared LaTeX table alignment", () => {
     ).toContain("\\caption{Measured values}");
   });
 
-  it("uses content-sized columns once a table reaches eight columns", () => {
+  it("fits twelve columns inside the measure with a smaller font", () => {
     const headings = Array.from(
       { length: 12 },
       (_, index) => `Aa${String(index + 1).padStart(2, "0")}`,
@@ -120,11 +120,42 @@ describe("shared LaTeX table alignment", () => {
         },
         context,
       ).files["manuscript.tex"] ?? "";
-    expect(tex).toContain("\\begin{tabular}{crllllllllll}");
-    expect(tex).not.toContain("XXXXXXXXXXXX");
+    expect(tex).toContain("\\scriptsize\\setlength{\\tabcolsep}{1.5pt}");
+    expect(tex).toContain(
+      "\\begin{tabularx}{\\columnwidth}{>{\\centering\\arraybackslash}X>{\\raggedleft\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X}",
+    );
+    expect(tex).not.toContain("\\begin{tabular}{");
     expect(tex).toContain("\\textbf{Aa01}");
     expect(tex).toContain("\\textbf{Aa12}");
     expect(tex).not.toContain("\\caption");
-    expect(tex).not.toContain("\\begin{tabularx}");
+  });
+
+  it("uses a small font once a table reaches six columns", () => {
+    const headings = Array.from({ length: 6 }, (_, index) => `C${index + 1}`);
+    const rows = [headings, headings.map(() => "v")].map((row) =>
+      row.map((value) => [{ type: "text" as const, value }]),
+    );
+    const tex =
+      template.render(
+        {
+          title: "Six",
+          authors: ["Ada"],
+          entries: [],
+          losses: [],
+          subjects: [],
+          blocks: [
+            {
+              kind: "table",
+              abstract: false,
+              headerRows: 1,
+              rows,
+            },
+          ],
+        },
+        context,
+      ).files["manuscript.tex"] ?? "";
+    expect(tex).toContain("\\small\\setlength{\\tabcolsep}{3pt}");
+    expect(tex).toContain("\\begin{tabularx}{\\columnwidth}{");
+    expect(tex).not.toContain("\\scriptsize");
   });
 });

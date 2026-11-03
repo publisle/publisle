@@ -12,11 +12,7 @@
     DocumentEditor,
   } from "@publisle/playground/core";
   import BlockEditor from "@publisle/playground/BlockEditor.svelte";
-  import MathBlockEditor from "@publisle/playground/MathBlockEditor.svelte";
   import { interactiveSchematicDefinition } from "@publisle/blocks-technical";
-  import { attachArticle } from "@publisle/adapter-astro/runtime";
-  import { prepare } from "@publisle/core";
-  import { compilePublicationAsync, publicationReaderManifest } from "@publisle/adapter-core/async";
   import starterDocument from "../lib/starter-document.json";
   import { fetchHealth, fetchPdfTemplates, compilePdf, PDF_ENABLED, type ApiHealth, type PdfTemplate } from "../lib/api";
   import {
@@ -24,20 +20,21 @@
     type PlaygroundExample,
   } from "../lib/playground-examples";
   import BlockPalette from "./BlockPalette.svelte";
-  import SchematicIsland from "./islands/Schematic.svelte";
 
-  // Live island runtime for the preview: schematic islands mount the real
-  // counter instead of their static fallback.
+  // The schematic island loads with the preview, not with the editor shell.
   const previewEnvironment = {
     implementations: {
       "publisle:interactive-schematic": (): Promise<unknown> =>
-        Promise.resolve({ default: SchematicIsland }),
+        import("./islands/Schematic.svelte"),
     },
     mount: (module: unknown, target: HTMLElement, props: unknown): unknown =>
-      svelteMount((module as { default: typeof SchematicIsland }).default, {
-        target,
-        props: props as Record<string, unknown>,
-      }),
+      svelteMount(
+        (module as { default: Parameters<typeof svelteMount>[0] }).default,
+        {
+          target,
+          props: props as Record<string, unknown>,
+        },
+      ),
     unmount: (instance: unknown): void => {
       svelteUnmount(instance as never);
     },
@@ -85,6 +82,14 @@ PDF export works out of the box: this sample already carries a title and author.
   let version = $state(0);
 
   let view = $state<"edit" | "preview">("edit");
+  let viewportKnown = $state(false);
+  let wideScreen = $state(false);
+  const previewActive = $derived(
+    viewportKnown && (wideScreen || view === "preview"),
+  );
+  let MathBlockEditor = $state<
+    typeof import("@publisle/playground/MathBlockEditor.svelte").default | undefined
+  >(undefined);
   let mode = $state<"blocks" | "markdown" | "json">("blocks");
   let markdownText = $state(STARTER_MARKDOWN);
   let jsonText = $state("");
@@ -103,7 +108,6 @@ PDF export works out of the box: this sample already carries a title and author.
   let pdfCountry = $state("");
   let pdfBusy = $state(false);
   let pdfElapsed = $state(0);
-  let citationResolver = $state<typeof import("../lib/preview-citations").previewCitations>();
   let pdfAbort: AbortController | undefined;
   let pdfDownloadUrl: string | undefined;
   const engineLabels: Record<string, string> = {
@@ -163,10 +167,13 @@ PDF export works out of the box: this sample already carries a title and author.
   const DRAFT_KEY = "publisle-draft-v1";
 
   onMount(() => {
-    let disposed = false;
-    void import("../lib/preview-citations").then((module) => {
-      if (!disposed) citationResolver = module.previewCitations;
-    }).catch(() => { if (!disposed) notice = "Citation formatting could not load. Reload to retry."; });
+    const media = window.matchMedia("(min-width: 1024px)");
+    const syncViewport = (): void => {
+      wideScreen = media.matches;
+    };
+    syncViewport();
+    viewportKnown = true;
+    media.addEventListener("change", syncViewport);
     const unsubscribe = editor.subscribe(() => { version += 1; });
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -205,7 +212,7 @@ PDF export works out of the box: this sample already carries a title and author.
       history.replaceState(history.state, "", url);
     }
     draftReady = true;
-    return () => { disposed = true; unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
+    return () => { media.removeEventListener("change", syncViewport); unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
   });
 
   $effect(() => {
@@ -258,7 +265,9 @@ PDF export works out of the box: this sample already carries a title and author.
     let dispose: (() => void) | undefined;
     // Restoring a draft in onMount can replace the initial HTML in the same
     // flush. Attach only after that DOM update, and ignore superseded work.
-    void tick().then(() => {
+    void tick().then(async () => {
+      if (cancelled) return;
+      const { attachArticle } = await import("@publisle/adapter-astro/runtime");
       if (!cancelled) dispose = attachArticle(target, manifest, previewEnvironment);
     });
     return () => { cancelled = true; dispose?.(); };
@@ -269,6 +278,19 @@ PDF export works out of the box: this sample already carries a title and author.
   const blocks = $derived.by(() => {
     void version;
     return editor.document.blocks;
+  });
+  $effect(() => {
+    if (MathBlockEditor || !blocks.some((block) => block.type === "publisle:math"))
+      return;
+    let active = true;
+    void import("@publisle/playground/MathBlockEditor.svelte").then((module) => {
+      if (active) MathBlockEditor = module.default;
+    }).catch(() => {
+      if (active) notice = "The math editor could not load. Reload to retry.";
+    });
+    return () => {
+      active = false;
+    };
   });
   const previewTitle = $derived.by(() => { void version; return editor.document.metadata?.title; });
 
@@ -288,17 +310,36 @@ PDF export works out of the box: this sample already carries a title and author.
   }));
 
   let previewBusy = $state(true);
-  let compiled = $state<{ html: string; warnings: number; error: string; manifest: ReturnType<typeof publicationReaderManifest> | undefined }>({ html: "", warnings: 0, error: "", manifest: undefined });
+  let compiled = $state<{
+    html: string;
+    warnings: number;
+    error: string;
+    manifest:
+      | ReturnType<
+          typeof import("@publisle/adapter-core/async").publicationReaderManifest
+        >
+      | undefined;
+  }>({ html: "", warnings: 0, error: "", manifest: undefined });
   $effect(() => {
+    if (!viewportKnown) return;
+    if (!previewActive) {
+      previewBusy = false;
+      return;
+    }
     void version;
     previewBusy = true;
     compiled = { html: "", warnings: 0, error: "", manifest: undefined };
     if (markdownPending > 0) return;
     const source = editor.document;
-    const citations = citationResolver?.(source);
     let active = true;
     void (async () => {
     try {
+      const { previewCitations } = await import("../lib/preview-citations");
+      const citations = previewCitations(source);
+      const { prepare } = await import("@publisle/core");
+      const { compilePublicationAsync, publicationReaderManifest } = await import(
+        "@publisle/adapter-core/async"
+      );
       const result = prepare(source, { registry });
       if (!result.document) {
         return {
@@ -330,6 +371,7 @@ PDF export works out of the box: this sample already carries a title and author.
   });
 
   async function setView(next: "edit" | "preview"): Promise<void> {
+    if (next === "preview") previewBusy = true;
     view = next;
     await flushSource();
   }
@@ -618,12 +660,16 @@ PDF export works out of the box: this sample already carries a title and author.
         {:else}
           {#each blocks as block (block.id)}
             {#if block.type === "publisle:math"}
-              <MathBlockEditor
-                {block}
-                selected={selectedId === block.id}
-                onSelect={(id) => (selectedId = id)}
-                onUpdate={(id, data) => editor.updateBlock(id, data)}
-              />
+              {#if MathBlockEditor}
+                <MathBlockEditor
+                  {block}
+                  selected={selectedId === block.id}
+                  onSelect={(id) => (selectedId = id)}
+                  onUpdate={(id, data) => editor.updateBlock(id, data)}
+                />
+              {:else}
+                <p class="text-sm text-muted">Loading math editor…</p>
+              {/if}
             {:else}
               <BlockEditor
                 {block}

@@ -3,8 +3,19 @@ import { document, createBlock } from "@publisle/schema";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { convertAssets, lowerImages } from "../src/worker.ts";
+import { convertAssets, lowerImages, missingGlyphFailure } from "../src/worker.ts";
 import { checkSvg } from "@publisle/research/node";
+
+it("names the character LuaLaTeX could not draw", () => {
+  const error = missingGlyphFailure(
+    "Missing character: There is no 😀 (U+1F600) in font TeXGyreTermes:mode=node;\n",
+  );
+  expect(error?.message).toBe(
+    "LuaLaTeX cannot render 😀 (U+1F600); remove it or use the fast engine.",
+  );
+  expect((error as { code?: string } | undefined)?.code).toBe("missing-glyph");
+  expect(missingGlyphFailure("Output written on manuscript.pdf")).toBeUndefined();
+});
 
 it("rejects SVG active content, file references, CSS imports and decoder escapes", () => {
   checkSvg(

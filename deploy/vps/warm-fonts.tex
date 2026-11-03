@@ -1,9 +1,12 @@
 \documentclass{article}
 \usepackage{fontspec,unicode-math}
-\setmainfont{TeX Gyre Termes}
+\IfFontExistsTF{Noto Emoji}{%
+\directlua{luaotfload.add_fallback("publisleemoji", {"NotoEmoji:mode=harf;"})}%
+\setmainfont{TeX Gyre Termes}[RawFeature={fallback=publisleemoji}]%
+}{\errmessage{Noto Emoji is not installed}}
 \setmathfont{TeX Gyre Termes Math}
 \newfontfamily\arabicfont{PakType Naskh Basic}
 \newfontfamily\cjkfont{FandolSong}
 \begin{document}
-Font cache warmup $x^2+1$. {\arabicfont مرحبا} {\cjkfont 中文}
+Font cache warmup $x^2+1$. {\arabicfont مرحبا} {\cjkfont 中文} 😀
 \end{document}
