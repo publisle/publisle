@@ -122,7 +122,9 @@ function replaceFigures(
 /** Names the first glyph LuaLaTeX could not draw, without returning the TeX log. */
 export function missingGlyphFailure(log: string): Error | undefined {
   const missingGlyph =
-    /Missing character: There is no (.+?) \((U\+[0-9A-F]+)\) in font/u.exec(log);
+    /Missing character: There is no (.+?) \((U\+[0-9A-F]+)\) in font/u.exec(
+      log,
+    );
   if (!missingGlyph) return undefined;
   const character = missingGlyph[1] ?? "";
   const codePoint = missingGlyph[2] ?? "";
