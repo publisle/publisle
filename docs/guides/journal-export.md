@@ -169,8 +169,8 @@ than that measure.
 
 LuaLaTeX fails the build when TeX Gyre Termes has no glyph for a character, and
 the PDF service names that character. A monochrome Noto Emoji fallback is pinned
-for LuaLaTeX, so an emoji is drawn from that font instead of becoming U+FFFD.
-The fast engine still prints U+FFFD. pdfLaTeX still rejects non-ASCII prose.
+for LuaLaTeX and the fast engine, so an emoji is drawn from that font instead of
+becoming U+FFFD. pdfLaTeX still rejects non-ASCII prose.
 A token with no hyphenation points (a hash, or letters glued to a digit) can
 still stick out of a narrow table cell.
 

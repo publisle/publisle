@@ -4,6 +4,7 @@
 
 - Let pdfLaTeX hyphenate the first word of a table cell, so a long dictionary
   word no longer paints over the next column.
+- Draw emoji on the fast engine from the pinned monochrome Noto Emoji font.
 
 ## 2026-11-03
 
