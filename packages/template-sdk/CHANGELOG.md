@@ -1,5 +1,16 @@
 # @publisle/template-sdk
 
+## 0.2.2
+
+### Patch Changes
+
+- 6457485: Let pdfLaTeX hyphenate the first word of a table cell, so a long dictionary
+  word stays inside its column instead of painting over the next one.
+- 971e622: Omit an empty LuaLaTeX table caption so a Markdown table no longer prints
+  "Table 1:". Fit tables with six or more columns inside the column width on
+  LuaLaTeX and pdfLaTeX with a smaller font, instead of letting wide tables run
+  past the page.
+
 ## 0.2.1
 
 ### Patch Changes
