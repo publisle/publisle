@@ -92,6 +92,7 @@ export async function compileNativePdf(
           "italic",
           "bold-italic",
           "mono",
+          "math",
           "fallback",
         ].includes(String(entry["role"])) ||
         (entry["index"] !== undefined &&
