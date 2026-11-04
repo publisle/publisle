@@ -22,7 +22,13 @@ export type NativePdfTemplate = (typeof NATIVE_PDF_TEMPLATES)[number];
 export interface NativeFont {
   readonly path: string;
   readonly role:
-    "regular" | "bold" | "italic" | "bold-italic" | "mono" | "math" | "fallback";
+    | "regular"
+    | "bold"
+    | "italic"
+    | "bold-italic"
+    | "mono"
+    | "math"
+    | "fallback";
   readonly index?: number;
 }
 export interface NativePdfInput {
