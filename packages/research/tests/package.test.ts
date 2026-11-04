@@ -50,7 +50,9 @@ describe("IEEE journal source packages", () => {
     expect(tex).toContain(
       "\\includegraphics[width=\\columnwidth]{assets/figure-1.pdf}",
     );
-    expect(tex).toContain("\\begin{tabularx}{\\columnwidth}{XX}");
+    expect(tex).toContain(
+      "\\begin{tabularx}{\\columnwidth}{>{\\hspace{0pt}}X>{\\hspace{0pt}}X}",
+    );
     expect(tex).toContain("\\begin{table}[!htbp]");
     expect(tex.indexOf("\\FloatBarrier")).toBeGreaterThan(
       tex.indexOf("\\end{table}"),

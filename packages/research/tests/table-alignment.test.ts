@@ -41,7 +41,7 @@ describe("shared LaTeX table alignment", () => {
       });
       const tex = output.files["manuscript.tex"];
       expect(tex).toContain(
-        "{>{\\raggedright\\arraybackslash}X>{\\centering\\arraybackslash}X>{\\raggedleft\\arraybackslash}X}",
+        "{>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\centering\\arraybackslash\\hspace{0pt}}X>{\\raggedleft\\arraybackslash\\hspace{0pt}}X}",
       );
       expect(tex).toContain("L & C & R \\\\");
       if (pdfUa) expect(tex).toContain("\\tagpdfsetup{table/header-rows={1}}");
@@ -50,12 +50,14 @@ describe("shared LaTeX table alignment", () => {
   it("retains the default columns for absent, null and unspecified alignments", () => {
     expect(
       template.render(article(), context).files["manuscript.tex"],
-    ).toContain("{XXX}");
+    ).toContain("{>{\\hspace{0pt}}X>{\\hspace{0pt}}X>{\\hspace{0pt}}X}");
     expect(
       template.render(article([null, "right"]), context).files[
         "manuscript.tex"
       ],
-    ).toContain("{X>{\\raggedleft\\arraybackslash}XX}");
+    ).toContain(
+      "{>{\\hspace{0pt}}X>{\\raggedleft\\arraybackslash\\hspace{0pt}}X>{\\hspace{0pt}}X}",
+    );
   });
 
   it("omits an empty caption and still numbers a labeled table", () => {
@@ -121,7 +123,7 @@ describe("shared LaTeX table alignment", () => {
       ).files["manuscript.tex"] ?? "";
     expect(tex).toContain("\\scriptsize\\setlength{\\tabcolsep}{1.5pt}");
     expect(tex).toContain(
-      "\\begin{tabularx}{\\columnwidth}{>{\\centering\\arraybackslash}X>{\\raggedleft\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X>{\\raggedright\\arraybackslash}X}",
+      "\\begin{tabularx}{\\columnwidth}{>{\\centering\\arraybackslash\\hspace{0pt}}X>{\\raggedleft\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X>{\\raggedright\\arraybackslash\\hspace{0pt}}X}",
     );
     expect(tex).not.toContain("\\begin{tabular}{");
     expect(tex).toContain("\\textbf{Aa01}");
