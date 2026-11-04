@@ -346,7 +346,12 @@ export function renderLatexArticle(
               : align === "left" || wide
                 ? "raggedright"
                 : undefined;
-        return command ? `>{\\${command}\\arraybackslash}X` : "X";
+        // pdfTeX hyphenates a word only after glue. The first word of a cell
+        // has none, so a long word is one box and overlaps the next cell.
+        const hyphen = "\\hspace{0pt}";
+        return command
+          ? `>{\\${command}\\arraybackslash${hyphen}}X`
+          : `>{${hyphen}}X`;
       }).join("");
       const captionText = take(block.caption ?? []);
       const captionLine = captionText.trim()

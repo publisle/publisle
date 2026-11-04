@@ -75,3 +75,42 @@ it("fits a caption-less 12-column table on LuaLaTeX and pdfLaTeX", async () => {
     }
   }
 });
+
+const longWord = "Pneumonoultramicroscopic";
+const longWordColumns = Array.from({ length: 6 }, () => longWord);
+
+it("hyphenates a long first word in a pdfLaTeX table cell", async () => {
+  const parsed = fromMarkdown(`---
+title: Long word
+authors:
+  - name: Ada
+---
+
+| ${longWordColumns.join(" | ")} |
+| ${longWordColumns.map(() => "---").join(" | ")} |
+| ${longWordColumns.join(" | ")} |
+`);
+  if (!parsed.document) throw new Error("Invalid long-word fixture");
+  for (const engine of ["pdflatex", "lualatex"] as const) {
+    const source = createLatexPackage(parsed.document, {
+      template,
+      engine,
+      pdfUa: false,
+    });
+    const tex = source.files["manuscript.tex"] ?? "";
+    expect(tex, engine).toContain("\\hspace{0pt}");
+    const compiled = await compileLatexPackage(source, {
+      compiler: "native",
+      sourceDirectory: process.cwd(),
+    });
+    const wide = compiled.diagnostics
+      .filter((item) => item.code === "latex-layout-overflow")
+      .map((item) => / \(([\d.]+)pt too wide\)/u.exec(item.message)?.[1])
+      .filter((value): value is string => value !== undefined)
+      .map(Number);
+    expect(
+      wide.every((points) => points <= 10),
+      `${engine} overfull ${wide.join(", ")}`,
+    ).toBe(true);
+  }
+});

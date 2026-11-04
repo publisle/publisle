@@ -2,13 +2,16 @@
 
 ## Unreleased
 
-### 2026-11-03
+- Let pdfLaTeX hyphenate the first word of a table cell, so a long dictionary
+  word no longer paints over the next column.
+
+## 2026-11-03
 
 - Omit an empty LuaLaTeX table caption, so a Markdown table no longer prints
   "Table 1:". Tables with six or more columns stay inside the measure in a
   smaller font, instead of running past the page.
 - Name the character LuaLaTeX cannot render, and draw emoji from monochrome
-  Noto Emoji on LuaLaTeX and the fast engine.
+  Noto Emoji on LuaLaTeX.
 - Defer the playground math editor, symbol palette, schematic island, and
   article preview until they are on screen, so a phone does not compile the
   preview during the first paint.
