@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "id": "release-efb55178f2ede6e4",
+  "id": "release-fd2e8647b5617bcd",
   "versions": {
     "@publisle/adapter-astro": "0.2.2",
     "@publisle/adapter-core": "0.2.3",
@@ -22,16 +22,16 @@
     "@publisle/template-article": "0.1.4",
     "@publisle/template-elsevier": "0.1.4",
     "@publisle/template-ieee": "0.1.4",
-    "@publisle/template-sdk": "0.2.1",
+    "@publisle/template-sdk": "0.2.2",
     "@publisle/template-springer": "0.1.4",
     "@publisle/blocks-core": "0.2.0",
     "@publisle/blocks-technical": "0.1.4"
   },
   "releases": [
     {
-      "name": "@publisle/research",
-      "oldVersion": "0.5.0",
-      "version": "0.5.1"
+      "name": "@publisle/template-sdk",
+      "oldVersion": "0.2.1",
+      "version": "0.2.2"
     }
   ]
 }
