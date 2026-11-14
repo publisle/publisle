@@ -23,7 +23,7 @@
     "@publisle/adapter-core": "0.2.1",
     "@publisle/adapter-astro": "0.2.2",
     "@publisle/cli": "0.2.2",
-    "astro": "7.3.8"
+    "astro": "7.4.12"
   },
   "devDependencies": {
     "@types/node": "24.13.5"
