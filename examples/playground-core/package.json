@@ -17,18 +17,18 @@
   },
   "devDependencies": {
     "@publisle/adapter-core": "workspace:*",
-    "playwright-core": "^1.58.0",
+    "playwright-core": "^1.65.0",
     "vite": "^8.3.3"
   },
   "dependencies": {
     "@publisle/blocks-core": "workspace:*",
     "@publisle/blocks-technical": "workspace:*",
     "@publisle/core": "workspace:*",
+    "@publisle/example-fourier": "workspace:*",
+    "@publisle/example-scene": "workspace:*",
     "@publisle/markdown": "workspace:*",
     "@publisle/playground": "workspace:*",
     "@publisle/schema": "workspace:*",
-    "@publisle/example-scene": "workspace:*",
-    "@publisle/example-fourier": "workspace:*",
     "mermaid": "12.2.0"
   }
 }
