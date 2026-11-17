@@ -605,7 +605,7 @@ PDF export works out of the box: this sample already carries a title and author.
           type="button"
           role="tab"
           aria-selected={mode === entry}
-          class="min-h-11 px-3 text-sm capitalize lg:min-h-9 {mode === entry
+          class="min-h-11 px-2 text-sm capitalize sm:px-3 lg:min-h-9 {mode === entry
             ? 'bg-surface font-medium text-accent'
             : 'text-muted hover:text-ink'}"
           onclick={() => changeMode(entry as "blocks" | "markdown" | "json")}
@@ -620,15 +620,18 @@ PDF export works out of the box: this sample already carries a title and author.
 
     <span class="order-6 ml-auto flex flex-wrap items-center gap-2 text-xs text-muted lg:order-4">
       {#if PDF_ENABLED}
-        <button type="button" class="min-h-11 rounded-md bg-accent px-3 text-sm font-medium text-bg disabled:opacity-50 lg:min-h-9" aria-busy={pdfBusy} disabled={pdfBusy || !health?.services?.pdf || !pdfTemplates.length} onclick={() => void exportPdf()}>{pdfBusy ? `Compiling… ${pdfElapsed}s` : "Export PDF"}</button>
-        {#if pdfBusy}<button type="button" class="min-h-11 rounded-md border border-line px-3 lg:min-h-9" onclick={() => pdfAbort?.abort()}>Cancel PDF</button>{/if}
+        <button type="button" class="min-h-11 rounded-md bg-accent px-2 text-sm font-medium text-bg disabled:opacity-50 sm:px-3 lg:min-h-9" aria-busy={pdfBusy} aria-label={pdfBusy ? `Compiling PDF, ${pdfElapsed} seconds` : "Export PDF"} disabled={pdfBusy || !health?.services?.pdf || !pdfTemplates.length} onclick={() => void exportPdf()}>
+          <span class="sm:hidden">{pdfBusy ? "PDF…" : "PDF"}</span>
+          <span class="hidden sm:inline">{pdfBusy ? `Compiling… ${pdfElapsed}s` : "Export PDF"}</span>
+        </button>
+        {#if pdfBusy}<button type="button" class="min-h-11 rounded-md border border-line px-3 lg:min-h-9" onclick={() => pdfAbort?.abort()}>Cancel</button>{/if}
         {#if health}
-          <span class="rounded-full border border-line px-2 py-0.5">
+          <span class="hidden rounded-full border border-line px-2 py-0.5 sm:inline">
             API {health.status}
             {health.services?.pdf ? " · PDF ready" : " · PDF pending"}
           </span>
         {:else}
-          <span class="rounded-full border border-line px-2 py-0.5">
+          <span class="hidden rounded-full border border-line px-2 py-0.5 sm:inline">
             API unreachable
           </span>
         {/if}
