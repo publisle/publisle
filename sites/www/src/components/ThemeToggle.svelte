@@ -3,7 +3,7 @@
 
   type Theme = "light" | "dark";
 
-  let theme: Theme = $state("light");
+  let theme: Theme = $state("dark");
 
   onMount(() => {
     const sync = () => {

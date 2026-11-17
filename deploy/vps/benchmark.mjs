@@ -1,4 +1,4 @@
-// Runs inside budget-check's isolated half-CPU / 512 MiB runtime.
+// Runs inside budget-check's isolated host-sized runtime.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, join, basename } from "node:path";
 import { createHash } from "node:crypto";
@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { playgroundExamples } from "../../sites/www/src/lib/playground-examples.ts";
+import { activeBudget } from "./budget.mjs";
 import { validateRequest, TEMPLATES } from "./limits.mjs";
 const execute = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
@@ -21,6 +22,13 @@ const compileJob =
   process.env.PDF_BENCH_NATIVE === "true"
     ? (await import("./native-study.mjs")).compileNative
     : latexCompile;
+function recordedBudget() {
+  const cpu = Number(process.env.PDF_AGGREGATE_CPU);
+  const memoryMiB = Number(process.env.PDF_AGGREGATE_MEMORY_MIB);
+  if (cpu >= 1 && memoryMiB >= 1) return { cpu, memoryMiB };
+  const budget = activeBudget();
+  return { cpu: budget.aggregateCpu, memoryMiB: budget.aggregateMemoryMiB };
+}
 const output = resolve(process.env.PDF_QA_ARTIFACTS ?? ".local/pdf-benchmark");
 await mkdir(output, { recursive: true });
 const image = (
@@ -113,8 +121,8 @@ const report = {
   complete: false,
   image,
   node: process.version,
-  cpu: 0.5,
-  memoryMiB: 512,
+  cpu: recordedBudget().cpu,
+  memoryMiB: recordedBudget().memoryMiB,
   warmups,
   samples,
   assets:

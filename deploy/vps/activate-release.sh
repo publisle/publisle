@@ -217,7 +217,7 @@ ln -s deploy/vps/qa/node_modules "$STAGE/source/node_modules"
 bounded validator /usr/bin/node tools/install-verapdf.mjs "$VALIDATION/verapdf"
 bounded verify /usr/bin/node deploy/vps/verify-release.mjs "$IMAGE" "$VALIDATION"
 # The LaTeX gate runs in its own process, started with the API's Node flags, so a
-# validation harness never sits in the 512 MiB slice next to the LaTeX container.
+# validation harness never sits in the PDF slice next to the LaTeX container.
 bounded verify-latex /usr/bin/node --jitless --max-old-space-size=48 deploy/vps/verify-latex.mjs "$LATEX_IMAGE" "$VALIDATION"
 BACKUP=$(mktemp -d "/opt/publisle-api/rollback-$RELEASE_SHA.XXXXXX")
 cp -a /etc/publisle-api.env "$BACKUP/env"

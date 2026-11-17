@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { compileJob } from "./server.mjs";
 import { TEMPLATES, validateRequest, availableTemplates } from "./limits.mjs";
 import { assertCompliant } from "../../tools/validate-pdf-ua.mjs";
+import { readInstalledBudget } from "./budget.mjs";
 const exec = promisify(execFile),
   root = join(import.meta.dirname, "../..");
 const [image, stage] = process.argv.slice(2);
@@ -21,10 +22,12 @@ const cpu = (await readFile(group + "/cpu.max", "utf8"))
   .trim()
   .split(" ")
   .map(Number);
-assert.equal(cpu[0] / cpu[1], 0.5);
+const installed = readInstalledBudget();
+assert(installed, "Missing /etc/publisle-pdf-budget.json");
+assert.equal(cpu[0] / cpu[1], installed.aggregateCpu);
 assert.equal(
   Number(await readFile(group + "/memory.max", "utf8")),
-  512 * 1024 * 1024,
+  installed.aggregateMemoryMiB * 1024 * 1024,
 );
 assert.equal(Number(await readFile(group + "/memory.swap.max", "utf8")), 0);
 await mkdir(join(stage, "results"), { recursive: true });
@@ -34,8 +37,8 @@ const ids = TEMPLATES.map((t) => t.id),
 const report = {
   image,
   passed: false,
-  aggregateCpu: 0.5,
-  aggregateMemoryMiB: 512,
+  aggregateCpu: installed.aggregateCpu,
+  aggregateMemoryMiB: installed.aggregateMemoryMiB,
   swapMiB: 0,
   samples: [],
   native: { templates: [] },
