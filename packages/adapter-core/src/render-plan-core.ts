@@ -383,20 +383,16 @@ function flow(
           ),
         );
         return [
-          element(
-            "pre",
-            highlighted.label ? { class: "publisle-code" } : {},
-            [
-              ...(highlighted.label
-                ? [
-                    element("span", { class: "publisle-code-language" }, [
-                      text(highlighted.label),
-                    ]),
-                  ]
-                : []),
-              code,
-            ],
-          ),
+          element("pre", highlighted.label ? { class: "publisle-code" } : {}, [
+            ...(highlighted.label
+              ? [
+                  element("span", { class: "publisle-code-language" }, [
+                    text(highlighted.label),
+                  ]),
+                ]
+              : []),
+            code,
+          ]),
         ];
       }
       case "divider":

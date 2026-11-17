@@ -1,5 +1,18 @@
 # @publisle/adapter-core
 
+## 0.2.4
+
+### Patch Changes
+
+- d405ca1: Name each code block's language and highlight the common ones, including
+  JavaScript, TypeScript, Python, JSON, HTML, CSS, Bash, Rust, Go, Java, C,
+  C++, SQL, and YAML.
+- e5b1762: Keep an empty figure as a placeholder instead of failing the document, and
+  render a warning in place of an unsafe figure URL. The playground edits list
+  items, links, and images as fields so inline math and task state stay put.
+- Updated dependencies [e5b1762]
+  - @publisle/core@0.1.4
+
 ## 0.2.3
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @publisle/research
 
+## 0.5.2
+
+### Patch Changes
+
+- 7ddd265: Pin the fast engine to 0.6.6 on all five platforms. The release binaries are
+  built with fat link-time optimization. The hosted worker runtime uses the same
+  exact native version.
+
 ## 0.5.1
 
 ### Patch Changes
