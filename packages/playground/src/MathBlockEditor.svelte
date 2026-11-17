@@ -46,8 +46,8 @@
     <strong>Math</strong>
     {#if onMove && onRemove}
       <div class="block-editor__actions">
-        <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up">Up</button>
-        <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down">Down</button>
+        <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up"><span aria-hidden="true">↑</span> Up</button>
+        <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down"><span aria-hidden="true">↓</span> Down</button>
         {#if onDuplicate}
           <button type="button" onclick={() => onDuplicate(block.id)} aria-label="Duplicate block">Copy</button>
         {/if}

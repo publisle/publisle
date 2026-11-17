@@ -585,3 +585,131 @@ it("preserves a JSON draft when an older saved Markdown tab has no source text",
     await page.close();
   }
 });
+
+it("adds blocks without a dialog from the pinned inserter and between blocks on a phone", async () => {
+  if (!browser) throw new Error("Browser not started");
+  const page = await browser.newPage({ viewport: { width: 320, height: 700 } });
+  try {
+    await page.goto(`${baseUrl}/playground/`);
+    await page.waitForSelector("astro-island[ssr]", { state: "detached" });
+    await waitForPreview(page);
+    const editor = page.getByRole("region", { name: "Document editor" });
+    const preview = page.getByRole("region", { name: "Compiled preview" });
+    const inserter = page.getByRole("group", { name: "Add a block" });
+    expect(
+      await page.getByRole("button", { name: "+ Add block" }).count(),
+    ).toBe(0);
+
+    // Common blocks are one tap away, with real miniatures and 44px targets.
+    for (const name of [
+      "paragraph",
+      "heading",
+      "list",
+      "quote",
+      "callout",
+      "code",
+      "math",
+      "figure",
+      "table",
+    ]) {
+      const button = inserter.getByRole("button", { name: `Add ${name}` });
+      const bounds = await button.boundingBox();
+      expect(bounds?.height).toBeGreaterThanOrEqual(44);
+      expect(
+        await button.locator("xpath=..").locator(".block-sample").count(),
+      ).toBe(1);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(320);
+
+    // The inserter stays pinned to the top of the scrolling editor.
+    await editor.evaluate((element) => {
+      element.scrollTop = 200;
+    });
+    const editorBounds = await editor.boundingBox();
+    const pinned = await inserter.boundingBox();
+    expect(Math.abs((pinned?.y ?? 0) - (editorBounds?.y ?? 0))).toBeLessThan(
+      24,
+    );
+
+    // One tap inserts after the selection and focuses the new field; no dialog.
+    const before = await editor.locator("[data-block-id]").count();
+    await inserter.getByRole("button", { name: "Add paragraph" }).click();
+    expect(await page.getByRole("dialog").count()).toBe(0);
+    expect(await editor.locator("[data-block-id]").count()).toBe(before + 1);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.activeElement?.closest("[data-block-id]") !== null,
+        ),
+      )
+      .toBe(true);
+    await expect.poll(() => preview.innerText()).toContain("New paragraph");
+    expect(await preview.isVisible()).toBe(true);
+
+    // Between blocks: one tap adds a paragraph there, a disclosure picks a type.
+    await editor
+      .getByRole("button", { name: "Insert paragraph after block 1" })
+      .click();
+    expect(await editor.locator("[data-block-id]").count()).toBe(before + 2);
+    await editor
+      .getByRole("button", {
+        name: "Choose a block type to insert after block 1",
+      })
+      .click();
+    await editor
+      .getByRole("button", { name: "Insert quote after block 1" })
+      .click();
+    expect(await editor.locator("[data-block-id]").count()).toBe(before + 3);
+    expect(await page.getByRole("dialog").count()).toBe(0);
+    expect(
+      await editor
+        .locator("[data-block-id]")
+        .nth(1)
+        .getAttribute("data-block-id"),
+    ).toBeTruthy();
+    expect(
+      await editor
+        .locator("[data-block-id] > [data-block-type]")
+        .nth(1)
+        .getAttribute("data-block-type"),
+    ).toBe("publisle:quote");
+
+    // Rarer blocks live in the palette, which previews the active entry.
+    await inserter.getByRole("button", { name: "More blocks" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add block" });
+    expect(await dialog.locator(".block-sample").count()).toBe(1);
+    await page.keyboard.press("Escape");
+    expect(await page.getByRole("dialog").count()).toBe(0);
+
+    // Phone chrome: two toolbar rows, 44px controls, move/copy/remove tappable.
+    const reset = page.getByRole("button", { name: "Reset", exact: true });
+    const tabs = page.getByRole("tab");
+    for (const control of [reset, ...(await tabs.all())]) {
+      if (!(await control.isVisible())) continue;
+      expect((await control.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    }
+    const toolbarBox = await reset.locator("..").boundingBox();
+    expect(toolbarBox?.height).toBeLessThan(170);
+    for (const name of [
+      "Move block up",
+      "Move block down",
+      "Duplicate block",
+      "Remove block",
+    ]) {
+      const bounds = await editor
+        .getByRole("button", { name })
+        .first()
+        .boundingBox();
+      expect(bounds?.height).toBeGreaterThanOrEqual(44);
+      expect(bounds?.width).toBeGreaterThanOrEqual(44);
+    }
+    expect((await preview.boundingBox())?.height).toBeGreaterThan(300);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(320);
+  } finally {
+    await page.close();
+  }
+});

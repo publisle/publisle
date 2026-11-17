@@ -229,6 +229,26 @@
     @apply my-8 border-line;
   }
 
+  .publisle-document .publisle-callout {
+    @apply my-5 rounded-lg border border-l-4 border-line border-l-accent bg-raised px-4 py-3;
+  }
+
+  .publisle-document .publisle-callout-warning {
+    @apply border-l-warning;
+  }
+
+  .publisle-document .publisle-callout-error {
+    @apply border-l-danger;
+  }
+
+  .publisle-document .publisle-callout > strong {
+    @apply block;
+  }
+
+  .publisle-document .publisle-callout > p {
+    @apply my-1;
+  }
+
   .publisle-document a {
     @apply text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent;
   }
@@ -494,11 +514,22 @@
 }
 
 .block-editor__actions {
-  @apply flex flex-wrap gap-1;
+  @apply flex flex-wrap gap-1.5;
 }
 
+/* Readable, tappable on a phone (44px); compact again from `sm`. */
 .block-editor__actions button {
-  @apply rounded border border-line px-2 py-0.5 text-xs hover:border-accent hover:text-accent;
+  @apply min-h-11 min-w-11 rounded border border-line px-3 text-sm hover:border-accent hover:text-accent sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-0.5 sm:text-xs;
+}
+
+/* Other block-editor buttons get a phone-sized hit area too. */
+@media (max-width: 639px) {
+  .field--segments button,
+  fieldset.field button,
+  .block-editor select {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
 }
 
 /* Short controls (`.field--short`) pair up from `sm`; textareas, segment
@@ -707,4 +738,120 @@ button.copy-code:focus,
 button.copy-code:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* Static miniature of a compiled block (inserter and palette previews).
+   Decorative and author-controlled; unlayered so it also wins over the
+   unlayered `.publisle-document pre` rule above. */
+.block-sample.publisle-document {
+  width: 100%;
+  max-width: none;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  overflow: hidden;
+  overflow-wrap: normal;
+  pointer-events: none;
+  text-align: left;
+  user-select: none;
+}
+
+.block-sample--lg.publisle-document {
+  font-size: 0.8125rem;
+}
+
+.block-sample.publisle-document
+  :is(
+    p,
+    ul,
+    ol,
+    pre,
+    blockquote,
+    figure,
+    table,
+    h2,
+    hr,
+    aside,
+    li,
+    figcaption
+  ) {
+  margin: 0;
+}
+
+.block-sample.publisle-document h2 {
+  border: 0;
+  padding: 0;
+  font-size: 1.35em;
+  line-height: 1.2;
+}
+
+.block-sample.publisle-document :is(ul, ol) {
+  padding-left: 1.3em;
+  line-height: 1.35;
+}
+
+.block-sample.publisle-document pre {
+  padding: 0.35em 0.55em;
+  font-size: 1em;
+  line-height: 1.4;
+  white-space: pre;
+}
+
+.block-sample.publisle-document blockquote {
+  padding-left: 0.6em;
+  border-left-width: 3px;
+}
+
+.block-sample.publisle-document table {
+  display: table;
+  width: 100%;
+  font-size: 1em;
+}
+
+.block-sample.publisle-document :is(th, td) {
+  padding: 0.2em 0.5em;
+}
+
+.block-sample.publisle-document .publisle-callout {
+  padding: 0.35em 0.6em;
+}
+
+.block-sample.publisle-document .publisle-figure-placeholder {
+  padding: 0.3em 0.5em;
+}
+
+.block-sample.publisle-document .publisle-callout > p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block-sample.publisle-document figcaption {
+  margin-top: 0.25em;
+  color: var(--text-muted);
+}
+
+.block-sample.publisle-document svg {
+  width: 100%;
+  height: 2.25em;
+  color: var(--text-muted);
+}
+
+.block-sample.publisle-document hr {
+  margin: 0.35em 0;
+}
+
+.block-sample__math {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 1.25em;
+  text-align: center;
+}
+
+.block-sample__math i {
+  font-style: italic;
+}
+
+.block-sample__math sup {
+  font-size: 0.7em;
+  font-style: normal;
 }
