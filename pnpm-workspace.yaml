@@ -8,6 +8,9 @@ allowBuilds:
   esbuild: true
   sharp: true
 
+overrides:
+  source-map-js: 1.2.2
+
 # @astrojs/astro2tsx pins @emnapi/core@1.11.3 but not the matching runtime.
 # pnpm otherwise pairs it with rolldown's @emnapi/runtime@2, and astro check
 # then fails while loading @astrojs/check.
