@@ -10,13 +10,19 @@
     fieldValue,
     flowText,
     inlineSegments,
+    insertListItem,
+    listItemEdits,
     listText,
+    removeListItem,
     removeSegment,
     setFieldJson,
     setFieldValue,
     setFlowText,
     setListText,
     setSegmentText,
+    setSegmentUrl,
+    updateListItemChecked,
+    updateListItemText,
     setTableText,
     tableText,
   } from "@publisle/playground-core";
@@ -50,8 +56,15 @@
   }
 
   function applyFlow(spec: FieldSpec, value: string): unknown {
-    if (spec.kind === "flow") return setFlowText(value);
-    if (spec.key === "rows") return setTableText(value);
+    const previous = data[spec.key];
+    if (spec.kind === "flow") {
+      if (flowText(previous as never) === value) return previous;
+      return setFlowText(value);
+    }
+    if (spec.key === "rows") {
+      if (tableText(previous as never) === value) return previous;
+      return setTableText(value);
+    }
     return setListText(value);
   }
 
@@ -66,8 +79,8 @@
   <header class="block-editor__header">
     <strong>{label}</strong>
     <div class="block-editor__actions">
-      <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up">↑</button>
-      <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down">↓</button>
+      <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up">Up</button>
+      <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down">Down</button>
       <button type="button" onclick={() => onRemove(block.id)} aria-label="Remove block">Remove</button>
     </div>
   </header>
@@ -96,6 +109,23 @@
                       ),
                     })}
                 />
+                {#if segment.url !== undefined}
+                  <input
+                    type="url"
+                    aria-label="{segment.label} URL"
+                    value={segment.url}
+                    placeholder="https://"
+                    onchange={(event) =>
+                      onUpdate(block.id, {
+                        ...data,
+                        [spec.key]: setSegmentUrl(
+                          data[spec.key] as readonly unknown[],
+                          segment.index,
+                          event.currentTarget.value,
+                        ),
+                      })}
+                  />
+                {/if}
                 <button
                   type="button"
                   aria-label="Remove {segment.label}"
@@ -171,6 +201,71 @@
               {/each}
             </select>
           </label>
+        {:else if spec.kind === "list"}
+          {@const rows = listItemEdits(data[spec.key])}
+          <fieldset class="field">
+            <legend>{spec.label}</legend>
+            {#each rows as row (row.index)}
+              <div class="segment">
+                <input
+                  type="checkbox"
+                  aria-label="Task {row.index + 1}"
+                  checked={row.checked === true}
+                  onchange={(event) =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: updateListItemChecked(
+                        data[spec.key],
+                        row.index,
+                        event.currentTarget.checked,
+                      ),
+                    })}
+                />
+                <input
+                  aria-label="Item {row.index + 1}"
+                  value={row.text}
+                  onchange={(event) =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: updateListItemText(
+                        data[spec.key],
+                        row.index,
+                        event.currentTarget.value,
+                      ),
+                    })}
+                  onkeydown={(event) => {
+                    if (event.key !== "Enter" || row.index !== rows.length - 1)
+                      return;
+                    event.preventDefault();
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: insertListItem(data[spec.key], row.index),
+                    });
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove item {row.index + 1}"
+                  onclick={() =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: removeListItem(data[spec.key], row.index),
+                    })}
+                >Remove</button>
+              </div>
+            {/each}
+            <button
+              type="button"
+              onclick={() =>
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: insertListItem(
+                    data[spec.key],
+                    Math.max(0, rows.length - 1),
+                  ),
+                })}
+            >Add item</button>
+          </fieldset>
         {:else if spec.kind === "flow" || spec.kind === "rows"}
           <label class="field">
             {spec.label}

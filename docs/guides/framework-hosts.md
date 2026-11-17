@@ -3,6 +3,14 @@
 Hosts own routes, page metadata and implementation loaders. The adapters preserve
 portable source semantics and diagnostics; they do not add a CMS or editor.
 
+:::callout{variant="info" title="What the page actually renders"}
+This callout and the list under it are compiled by the same publication pipeline
+the adapters ship. The code samples below are the host setup, not a separate theme.
+:::
+
+- The host owns the route and the page metadata.
+- [Open the playground](/playground/) to edit the same kinds of blocks.
+
 ## Next.js App Router
 
 Install `@publisle/adapter-next` with the core packages and React. The adapter

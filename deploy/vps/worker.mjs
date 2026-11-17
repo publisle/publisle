@@ -2,9 +2,11 @@ import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { LIMITS, ServiceError } from "./limits.mjs";
+import { workerBudget } from "./budget.mjs";
 
 const execute = promisify(execFile);
 export function workerArguments(image, name, directory, action) {
+  const limits = workerBudget();
   if (!/^sha256:[a-f0-9]{64}$/.test(image))
     throw new Error("PDF_WORKER_IMAGE must be an immutable local image ID.");
   const parent = process.env.PDF_CGROUP_PARENT;
@@ -25,9 +27,9 @@ export function workerArguments(image, name, directory, action) {
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
     "--pids-limit=64",
-    "--cpus=0.5",
-    "--memory=448m",
-    "--memory-swap=448m",
+    `--cpus=${limits.cpus}`,
+    `--memory=${limits.memoryMiB}m`,
+    `--memory-swap=${limits.memoryMiB}m`,
     "--tmpfs",
     "/tmp:rw,nosuid,nodev,noexec,size=128m,mode=1777",
     "--ulimit",
