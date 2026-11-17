@@ -103,6 +103,13 @@
   max-width: 100%;
 }
 
+.publisle-document .publisle-figure-placeholder {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  border: 1px dashed currentColor;
+  text-align: center;
+}
+
 .publisle-document .publisle-task-list-item {
   display: grid;
   grid-template-columns: 1em minmax(0, 1fr);
@@ -166,4 +173,44 @@
   width: max-content;
   min-width: 100%;
   text-align: center;
+}
+
+.publisle-document pre.publisle-code {
+  position: relative;
+}
+
+.publisle-document .publisle-code-language {
+  position: absolute;
+  top: 0.55em;
+  left: 0.9em;
+  max-width: calc(100% - 7em);
+  overflow: hidden;
+  font-family: var(--publisle-ui-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--publisle-muted, light-dark(#574f4b, #d3ccc6));
+}
+
+.publisle-document .tok-keyword,
+.publisle-document .tok-tag {
+  color: light-dark(#9b3214, #ec8a6d);
+}
+
+.publisle-document .tok-string {
+  color: light-dark(#0b6b45, #8fd9b4);
+}
+
+.publisle-document .tok-comment {
+  color: var(--publisle-muted, light-dark(#574f4b, #d3ccc6));
+  font-style: italic;
+}
+
+.publisle-document .tok-number,
+.publisle-document .tok-attr {
+  color: light-dark(#1d4e89, #9ec5e8);
 }

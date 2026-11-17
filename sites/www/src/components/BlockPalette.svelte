@@ -2,6 +2,7 @@
   // Searchable block-insertion palette (Ctrl+K). Entries are grouped by
   // category and filtered across label, description, and type id.
   import { tick } from "svelte";
+  import BlockSample from "./BlockSample.svelte";
 
   interface BlockEntry {
     readonly type: string;
@@ -46,6 +47,7 @@
   });
 
   const flat = $derived(filtered.flatMap((group) => group.entries));
+  const activeEntry = $derived(flat[active]);
 
   $effect(() => {
     if (open) {
@@ -125,12 +127,13 @@
       <input
         bind:this={search}
         bind:value={query}
+        oninput={() => (active = 0)}
         type="text"
         placeholder="Search blocks…"
         aria-label="Search blocks"
         class="w-full border-b border-line bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted"
       />
-      <div class="grid max-h-[50vh] gap-y-1 overflow-y-auto p-2 sm:grid-cols-2">
+      <div class="grid max-h-[38vh] gap-y-1 overflow-y-auto p-2 sm:max-h-[40vh] sm:grid-cols-2">
         {#if flat.length === 0}
           <p class="px-2 py-6 text-center text-sm text-muted">
             No blocks match “{query}”.
@@ -145,11 +148,12 @@
               <button
                 type="button"
                 data-active={flatIndex === active}
-                class="flex w-full items-baseline gap-2 rounded-lg px-3 py-1.5 text-left {flatIndex === active
+                class="flex min-h-11 w-full items-baseline gap-2 rounded-lg px-3 py-1.5 text-left {flatIndex === active
                   ? 'bg-surface ring-1 ring-accent/50'
                   : 'hover:bg-surface'}"
                 onclick={() => insert(entry.type)}
                 onmousemove={() => (active = flatIndex)}
+                onfocus={() => (active = flatIndex)}
               >
                 <span class="min-w-0">
                   <span class="block text-sm font-medium">{entry.label}</span>
@@ -162,6 +166,17 @@
           {/each}
         {/if}
       </div>
+      {#if activeEntry}
+        <div class="flex items-center gap-3 border-t border-line bg-surface px-4 py-3">
+          <div class="h-24 w-36 shrink-0 overflow-hidden rounded-md border border-line bg-bg px-2 py-1.5 sm:w-48">
+            <BlockSample type={activeEntry.type} label={activeEntry.label} size="lg" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium">{activeEntry.label}</p>
+            <p class="text-xs text-muted">{activeEntry.description}</p>
+          </div>
+        </div>
+      {/if}
       <p class="border-t border-line px-4 py-2 text-xs text-muted">
         Enter to insert · ↑↓ to navigate · Esc to close
       </p>

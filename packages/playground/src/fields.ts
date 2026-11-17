@@ -14,6 +14,7 @@ export type FieldKind =
   | "segments"
   | "flow"
   | "rows"
+  | "list"
   | "json";
 
 export interface FieldSpec {
@@ -53,6 +54,27 @@ const VARIANTS = [
   { value: "error", label: "Error" },
 ];
 
+const CODE_LANGUAGES = [
+  { value: "", label: "Plain" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "jsx", label: "JSX" },
+  { value: "tsx", label: "TSX" },
+  { value: "python", label: "Python" },
+  { value: "json", label: "JSON" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "bash", label: "Bash" },
+  { value: "rust", label: "Rust" },
+  { value: "go", label: "Go" },
+  { value: "java", label: "Java" },
+  { value: "c", label: "C" },
+  { value: "cpp", label: "C++" },
+  { value: "sql", label: "SQL" },
+  { value: "yaml", label: "YAML" },
+  { value: "markdown", label: "Markdown" },
+];
+
 const omit = (
   data: Record<string, unknown>,
   key: string,
@@ -85,13 +107,7 @@ export function blockFields(
     case "publisle:list":
       return [
         { kind: "checkbox", key: "ordered", label: "Numbered list" },
-        {
-          kind: "rows",
-          key: "items",
-          label: "Items (one per line)",
-          rows: 4,
-          hint: plain(),
-        },
+        { kind: "list", key: "items", label: "Items" },
       ];
     case "publisle:quote":
       return [
@@ -105,7 +121,13 @@ export function blockFields(
       ];
     case "publisle:code":
       return [
-        { kind: "text", key: "language", label: "Language", optional: true },
+        {
+          kind: "select",
+          key: "language",
+          label: "Language",
+          optional: true,
+          options: CODE_LANGUAGES,
+        },
         { kind: "textarea", key: "value", label: "Code", rows: 5 },
       ];
     case "publisle:math":
@@ -121,7 +143,7 @@ export function blockFields(
       ];
     case "publisle:figure":
       return [
-        { kind: "text", key: "src", label: "Source" },
+        { kind: "text", key: "src", label: "Image URL" },
         { kind: "textarea", key: "alt", label: "Alt text", rows: 2 },
         {
           kind: "text",
@@ -328,6 +350,7 @@ export interface InlineSegment {
   readonly label: string;
   readonly value: string;
   readonly placeholder?: string;
+  readonly url?: string;
 }
 
 export const SEGMENT_KINDS: readonly {
@@ -335,6 +358,8 @@ export const SEGMENT_KINDS: readonly {
   readonly label: string;
 }[] = [
   { value: "text", label: "Text" },
+  { value: "link", label: "Link" },
+  { value: "image", label: "Image" },
   { value: "citation", label: "Citation" },
   { value: "math", label: "Inline math" },
   { value: "code", label: "Inline code" },
@@ -389,8 +414,17 @@ function segmentOf(node: AnyNode, index: number): InlineSegment | undefined {
       return {
         index,
         kind: "link",
-        label: `Link ${String(node["url"] ?? "")}`,
+        label: "Link",
         value: descendantText(node),
+        url: String(node["url"] ?? ""),
+      };
+    case "inlineImage":
+      return {
+        index,
+        kind: "inlineImage",
+        label: "Image",
+        value: String(node["alt"] ?? ""),
+        url: String(node["url"] ?? ""),
       };
     case "citationReference": {
       const items = Array.isArray(node["items"]) ? node["items"] : [];
@@ -421,7 +455,6 @@ function segmentOf(node: AnyNode, index: number): InlineSegment | undefined {
       };
     case "hardBreak":
     case "softBreak":
-    case "inlineImage":
     case "rawHtml":
       return undefined;
     default:
@@ -502,6 +535,8 @@ export function setSegmentText(
         return { ...node, identifier: value };
       case "crossReference":
         return { ...node, target: value };
+      case "inlineImage":
+        return { ...node, alt: value };
       case "emphasis":
       case "strong":
       case "strikethrough":
@@ -521,6 +556,18 @@ export function appendSegment(
 ): unknown[] {
   const next = [...asNodes(nodes)];
   if (kind === "text") next.push({ type: "text", value: " " });
+  else if (kind === "link")
+    next.push({
+      type: "link",
+      url: "https://example.com",
+      children: [{ type: "text", value: "link text" }],
+    });
+  else if (kind === "image")
+    next.push({
+      type: "inlineImage",
+      url: "https://example.com/image.png",
+      alt: "Description",
+    });
   else if (kind === "citation")
     next.push({ type: "citationReference", items: [{ id: "citation-id" }] });
   else if (kind === "math")
@@ -556,6 +603,89 @@ export function listText(items: unknown): string {
       ),
     )
     .join("\n");
+}
+
+export function setSegmentUrl(
+  nodes: readonly unknown[] | undefined,
+  index: number,
+  url: string,
+): unknown[] {
+  return asNodes(nodes).map((node, position) => {
+    if (position !== index) return node;
+    if (node["type"] === "link" || node["type"] === "inlineImage")
+      return { ...node, url };
+    return node;
+  });
+}
+
+export interface ListItemEdit {
+  readonly index: number;
+  readonly text: string;
+  readonly checked: boolean | undefined;
+}
+
+/** One editor row per list item. Plain text is what the row shows. */
+export function listItemEdits(items: unknown): ListItemEdit[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((item, index) => {
+    const node = (item ?? {}) as AnyNode;
+    const checked =
+      typeof node["checked"] === "boolean" ? node["checked"] : undefined;
+    return {
+      index,
+      text: flowText(node["children"] as Parameters<typeof flowText>[0]),
+      checked,
+    };
+  });
+}
+
+function listCopy(items: unknown): AnyNode[] {
+  return Array.isArray(items)
+    ? (items as AnyNode[]).map((item) => ({ ...(item as AnyNode) }))
+    : [];
+}
+
+/** Replace one item's text. An unchanged string keeps links, math, and images. */
+export function updateListItemText(
+  items: unknown,
+  index: number,
+  text: string,
+): unknown[] {
+  const list = listCopy(items);
+  const current = list[index] ?? { type: "listItem" };
+  if (flowText(current["children"] as Parameters<typeof flowText>[0]) === text)
+    return list;
+  list[index] = {
+    ...current,
+    type: "listItem",
+    children: [{ type: "paragraph", content: [{ type: "text", value: text }] }],
+  };
+  return list;
+}
+
+export function updateListItemChecked(
+  items: unknown,
+  index: number,
+  checked: boolean,
+): unknown[] {
+  const list = listCopy(items);
+  const current = list[index] ?? { type: "listItem", children: [] };
+  if (!checked && typeof current["checked"] !== "boolean") return list;
+  list[index] = { ...current, type: "listItem", checked };
+  return list;
+}
+
+export function removeListItem(items: unknown, index: number): unknown[] {
+  return listCopy(items).filter((_, position) => position !== index);
+}
+
+export function insertListItem(items: unknown, index: number): unknown[] {
+  const list = listCopy(items);
+  list.splice(index + 1, 0, {
+    type: "listItem",
+    children: [{ type: "paragraph", content: [{ type: "text", value: "" }] }],
+  });
+  return list;
 }
 
 /** Rebuild simple list items from one-line-per-item text. */

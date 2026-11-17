@@ -8,7 +8,10 @@
     fieldValue,
     flowText,
     inlineSegments,
+    insertListItem,
+    listItemEdits,
     listText,
+    removeListItem,
     removeSegment,
     SEGMENT_KINDS,
     setFieldJson,
@@ -16,7 +19,10 @@
     setFlowText,
     setListText,
     setSegmentText,
+    setSegmentUrl,
     setTableText,
+    updateListItemChecked,
+    updateListItemText,
     tableText,
     type FieldSpec,
     type PlaygroundExtensions,
@@ -86,13 +92,31 @@
     return typeof value === "string" ? value : String(value);
   }
 
+  function selectOptions(spec: FieldSpec): readonly {
+    readonly value: string;
+    readonly label: string;
+  }[] {
+    const options = spec.options ?? [];
+    const current = plainValue(spec);
+    if (current && !options.some((option) => option.value === current))
+      return [{ value: current, label: current }, ...options];
+    return options;
+  }
+
   function applyPlain(spec: FieldSpec, value: string): void {
     onUpdate(block.id, setFieldValue(data, spec, value));
   }
 
   function applyFlow(spec: FieldSpec, value: string): unknown {
-    if (spec.kind === "flow") return setFlowText(value);
-    if (spec.key === "rows") return setTableText(value);
+    const previous = data[spec.key];
+    if (spec.kind === "flow") {
+      if (flowText(previous as never) === value) return previous;
+      return setFlowText(value);
+    }
+    if (spec.key === "rows") {
+      if (tableText(previous as never) === value) return previous;
+      return setTableText(value);
+    }
     return setListText(value);
   }
 
@@ -125,12 +149,12 @@
   <header class="block-editor__header">
     <strong>{label}</strong>
     <div class="block-editor__actions">
-      <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up">↑</button>
-      <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down">↓</button>
+      <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up"><span aria-hidden="true">↑</span> Up</button>
+      <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down"><span aria-hidden="true">↓</span> Down</button>
       {#if onDuplicate}
-        <button type="button" onclick={() => onDuplicate(block.id)} aria-label="Duplicate block">⧉</button>
+        <button type="button" onclick={() => onDuplicate(block.id)} aria-label="Duplicate block">Copy</button>
       {/if}
-      <button type="button" onclick={() => onRemove(block.id)} aria-label="Remove block">✕</button>
+      <button type="button" onclick={() => onRemove(block.id)} aria-label="Remove block">Remove</button>
     </div>
   </header>
   <div class="block-editor__body">
@@ -187,7 +211,7 @@
                     rows={segment.kind === "text" ? 3 : 2}
                     aria-label={`${spec.label}: ${segment.label} ${segment.index + 1}`}
                     value={segment.value}
-                    placeholder={segment.placeholder ?? ""}
+                    placeholder={segment.kind === "inlineImage" ? "Alt text" : segment.placeholder ?? ""}
                     class={segmentTint(segment.kind)}
                     oninput={(event) =>
                       onUpdate(block.id, {
@@ -199,6 +223,30 @@
                         ),
                       })}
                   ></textarea>
+                  {#if segment.url !== undefined}
+                    <input
+                      type="url"
+                      aria-label={`${segment.label} URL ${segment.index + 1}`}
+                      value={segment.url}
+                      placeholder="https://"
+                      oninput={(event) =>
+                        onUpdate(block.id, {
+                          ...data,
+                          [spec.key]: setSegmentUrl(
+                            data[spec.key] as readonly unknown[],
+                            segment.index,
+                            event.currentTarget.value,
+                          ),
+                        })}
+                    />
+                    {#if segment.kind === "inlineImage" && segment.url}
+                      <img
+                        src={segment.url}
+                        alt=""
+                        class="mt-1 max-h-16 rounded border border-line"
+                      />
+                    {/if}
+                  {/if}
                 {/if}
                 <button
                   type="button"
@@ -270,11 +318,77 @@
               value={plainValue(spec)}
               oninput={(event) => applyPlain(spec, event.currentTarget.value)}
             >
-              {#each spec.options ?? [] as option (option.value)}
+              {#each selectOptions(spec) as option (option.value)}
                 <option value={option.value}>{option.label}</option>
               {/each}
             </select>
           </label>
+        {:else if spec.kind === "list"}
+          {@const rows = listItemEdits(data[spec.key])}
+          <fieldset class="field">
+            <legend>{spec.label}</legend>
+            {#each rows as row (row.index)}
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  aria-label="Task {row.index + 1}"
+                  checked={row.checked === true}
+                  onchange={(event) =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: updateListItemChecked(
+                        data[spec.key],
+                        row.index,
+                        event.currentTarget.checked,
+                      ),
+                    })}
+                />
+                <input
+                  class="min-w-0 flex-1"
+                  aria-label="Item {row.index + 1}"
+                  value={row.text}
+                  oninput={(event) =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: updateListItemText(
+                        data[spec.key],
+                        row.index,
+                        event.currentTarget.value,
+                      ),
+                    })}
+                  onkeydown={(event) => {
+                    if (event.key !== "Enter" || row.index !== rows.length - 1)
+                      return;
+                    event.preventDefault();
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: insertListItem(data[spec.key], row.index),
+                    });
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove item {row.index + 1}"
+                  onclick={() =>
+                    onUpdate(block.id, {
+                      ...data,
+                      [spec.key]: removeListItem(data[spec.key], row.index),
+                    })}
+                >Remove</button>
+              </div>
+            {/each}
+            <button
+              type="button"
+              onclick={() =>
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: insertListItem(
+                    data[spec.key],
+                    Math.max(0, rows.length - 1),
+                  ),
+                })}
+            >Add item</button>
+          </fieldset>
         {:else if spec.kind === "flow" || spec.kind === "rows"}
           <label class="field">
             {spec.label}
@@ -308,6 +422,13 @@
               placeholder={spec.placeholder ?? ""}
               oninput={(event) => applyPlain(spec, event.currentTarget.value)}
             />
+            {#if spec.key === "src" && plainValue(spec)}
+              <img
+                src={plainValue(spec)}
+                alt=""
+                class="mt-2 max-h-24 rounded border border-line"
+              />
+            {/if}
             {#if spec.hint}<small class="muted">{spec.hint}</small>{/if}
           </label>
         {/if}

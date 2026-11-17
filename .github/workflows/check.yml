@@ -24,21 +24,26 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm check
-
-      - run: pnpm docs:check
-
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm exec vitest run --reporter=default --reporter=json --outputFile=${{ runner.temp }}/unit.json
+      - run: pnpm build:examples
       - run: pnpm test:python
-
-      - run: pnpm test:pdf-service
-
       - run: pnpm test:conformance:renderer
 
       - uses: actions/cache@v6
+        id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-1.63.0
-      - run: bash tools/ci-apt-sources.sh
-      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: Install browser
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            pnpm exec playwright-core install chromium
+          else
+            bash tools/ci-apt-sources.sh
+            pnpm exec playwright-core install --with-deps chromium
+          fi
 
-      - run: pnpm test:conformance:p0
+      - run: pnpm test:conformance:p0 -- --unit-report ${{ runner.temp }}/unit.json

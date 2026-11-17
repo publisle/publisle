@@ -59,12 +59,18 @@ jobs:
             "${{ vars.PUBLIC_PDF_ENABLED || 'false' }}" > sites/www/.env.production
           pnpm --filter @publisle/www build
       - uses: actions/cache@v6
+        id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-1.63.0
-      - run: bash tools/ci-apt-sources.sh
       - name: Install browser
-        run: pnpm exec playwright-core install --with-deps chromium
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            pnpm exec playwright-core install chromium
+          else
+            bash tools/ci-apt-sources.sh
+            pnpm exec playwright-core install --with-deps chromium
+          fi
       - name: Playground browser regression
         run: pnpm exec vitest run --config vitest.acceptance.config.ts sites/www/tests/playground.acceptance.test.ts
       - name: Link check (internal links must resolve; known-flaky hosts ignored)
