@@ -360,10 +360,8 @@ it("contains Quickstart code on mobile and keeps the toolbar above the scrolling
       ).toBe(width);
       if (width < 1024) {
         const preview = page.getByRole("region", { name: "Compiled preview" });
-        expect(await preview.isVisible()).toBe(false);
-        await page.getByRole("tab", { name: /^Preview/ }).click();
         expect(await preview.isVisible()).toBe(true);
-        expect(await editor.isVisible()).toBe(false);
+        expect(await editor.isVisible()).toBe(true);
         await waitForPreview(page);
         await preview
           .getByRole("button", { name: "Explore Eight-point FFT butterfly" })
@@ -375,12 +373,10 @@ it("contains Quickstart code on mobile and keeps the toolbar above the scrolling
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth),
         ).toBe(width);
-        await page.getByRole("tab", { name: "Edit", exact: true }).click();
         await page.getByRole("tab", { name: /^markdown$/i }).click();
         await page
           .getByRole("textbox", { name: "Markdown source" })
           .fill("# Mobile edit\n\nPhone edits survive view changes.");
-        await page.getByRole("tab", { name: /^Preview/ }).click();
         await waitForPreview(page);
         expect(await preview.innerText()).toContain(
           "Phone edits survive view changes.",
@@ -433,17 +429,29 @@ it("contains docs code and aligns Research equation numbers on small and large s
         const equations = preview.locator(".publisle-math-numbered");
         expect(await equations.count()).toBeGreaterThan(0);
         for (const equation of await equations.all()) {
-          const math = await equation
-            .locator(":scope > .katex-display")
-            .boundingBox();
-          const number = await equation
-            .locator(".publisle-equation-number")
-            .boundingBox();
-          if (!math || !number) throw new Error("Missing equation geometry");
-          expect(number.x).toBeGreaterThanOrEqual(math.x + math.width);
-          expect(
-            Math.abs(number.y + number.height / 2 - math.y - math.height / 2),
-          ).toBeLessThan(2);
+          const aligned = await equation.evaluate((element) => {
+            const math = element.querySelector(":scope > .katex-display");
+            const number = element.querySelector(".publisle-equation-number");
+            if (
+              !(math instanceof HTMLElement) ||
+              !(number instanceof HTMLElement)
+            )
+              return undefined;
+            const mathBox = math.getBoundingClientRect();
+            const numberBox = number.getBoundingClientRect();
+            return {
+              horizontal: numberBox.x >= mathBox.x + mathBox.width - 1,
+              vertical: Math.abs(
+                numberBox.y +
+                  numberBox.height / 2 -
+                  mathBox.y -
+                  mathBox.height / 2,
+              ),
+            };
+          });
+          if (!aligned) throw new Error("Missing equation geometry");
+          expect(aligned.horizontal).toBe(true);
+          expect(aligned.vertical).toBeLessThan(2);
         }
       }
     }

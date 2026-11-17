@@ -196,6 +196,10 @@
     @apply my-1.5;
   }
 
+  .publisle-document li > p {
+    margin-block: 0;
+  }
+
   .publisle-document pre {
     @apply my-5 overflow-x-auto rounded-lg border border-line bg-raised p-4 font-mono text-sm leading-6;
   }
@@ -456,7 +460,7 @@
   }
 
   :root:not([data-theme="light"])
-    .publisle-figure-themed
+    .publisle-figure-themed:has(img[data-publisle-variant="dark"])
     img:not([data-publisle-variant]) {
     display: none;
   }
@@ -469,9 +473,15 @@
 }
 
 :root[data-theme="dark"]
-  .publisle-figure-themed
+  .publisle-figure-themed:has(img[data-publisle-variant="dark"])
   img:not([data-publisle-variant]) {
   display: none;
+}
+
+:root[data-theme="dark"]
+  .publisle-figure-themed:not(:has(img[data-publisle-variant="dark"]))
+  img:not([data-publisle-variant]) {
+  display: block;
 }
 
 /* Playground editor primitives (promoted from the example hosts). */
@@ -648,11 +658,33 @@ main p a {
   }
 }
 
-/* Copy control for authored code samples. The compiled preview keeps its own
-   pre elements and is excluded by the script. */
-pre:has(> button.copy-code) {
+/* Reserve the copy-button row before the script inserts the control.
+   The compiled preview keeps its own pre elements and is excluded. */
+.publisle-document pre {
   position: relative;
   padding-top: 2.5rem;
+}
+
+.publisle-preview .publisle-document pre,
+[aria-label="Compiled preview"] .publisle-document pre {
+  padding-top: 1rem;
+}
+
+pre.source-sample {
+  position: relative;
+  padding: 2.5rem 1rem 1rem;
+}
+
+.route-status {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.35rem 1rem;
+  background: var(--accent, #9b3214);
+  color: var(--bg, #fff);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 button.copy-code {

@@ -18,7 +18,7 @@ export default defineConfig({
         "form-action 'self'",
         // 127.0.0.1/localhost cover the website PDF test, which compiles
         // against an API on another loopback port. Production uses the HTTPS API.
-        "connect-src 'self' https://api.publisle.xyz http://127.0.0.1:* http://localhost:*",
+        "connect-src 'self' https://api.publisle.xyz https://api.github.com http://127.0.0.1:* http://localhost:*",
         "img-src 'self' data: blob:",
         // KaTeX ships some faces as data: URLs inside its stylesheet.
         "font-src 'self' data:",

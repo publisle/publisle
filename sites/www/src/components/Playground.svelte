@@ -83,10 +83,7 @@ PDF export works out of the box: this sample already carries a title and author.
 
   let view = $state<"edit" | "preview">("edit");
   let viewportKnown = $state(false);
-  let wideScreen = $state(false);
-  const previewActive = $derived(
-    viewportKnown && (wideScreen || view === "preview"),
-  );
+  let draftReady = $state(false);
   let MathBlockEditor = $state<
     typeof import("@publisle/playground/MathBlockEditor.svelte").default | undefined
   >(undefined);
@@ -158,8 +155,9 @@ PDF export works out of the box: this sample already carries a title and author.
   let selectedId = $state<string | undefined>(undefined);
   let paletteOpen = $state(false);
   let previewEl = $state<HTMLDivElement | null>(null);
+  let editorSection = $state<HTMLElement | null>(null);
+  let previewSection = $state<HTMLElement | null>(null);
 
-  let draftReady = $state(false);
   let storageAvailable = $state(true);
   let sourcePending = false;
   let sourceFlight: Promise<void> | undefined;
@@ -167,13 +165,6 @@ PDF export works out of the box: this sample already carries a title and author.
   const DRAFT_KEY = "publisle-draft-v1";
 
   onMount(() => {
-    const media = window.matchMedia("(min-width: 1024px)");
-    const syncViewport = (): void => {
-      wideScreen = media.matches;
-    };
-    syncViewport();
-    viewportKnown = true;
-    media.addEventListener("change", syncViewport);
     const unsubscribe = editor.subscribe(() => { version += 1; });
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -211,8 +202,9 @@ PDF export works out of the box: this sample already carries a title and author.
       url.searchParams.delete("example");
       history.replaceState(history.state, "", url);
     }
+    viewportKnown = true;
     draftReady = true;
-    return () => { media.removeEventListener("change", syncViewport); unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
+    return () => { unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
   });
 
   $effect(() => {
@@ -236,6 +228,7 @@ PDF export works out of the box: this sample already carries a title and author.
 
   function scheduleSource(): void {
     sourcePending = true;
+    previewBusy = true;
     clearTimeout(sourceTimer);
     sourceTimer = setTimeout(flushSource, 200);
   }
@@ -309,6 +302,7 @@ PDF export works out of the box: this sample already carries a title and author.
       })),
   }));
 
+  const previewActive = $derived(viewportKnown && draftReady);
   let previewBusy = $state(true);
   let compiled = $state<{
     html: string;
@@ -321,14 +315,9 @@ PDF export works out of the box: this sample already carries a title and author.
       | undefined;
   }>({ html: "", warnings: 0, error: "", manifest: undefined });
   $effect(() => {
-    if (!viewportKnown) return;
-    if (!previewActive) {
-      previewBusy = false;
-      return;
-    }
+    if (!previewActive) return;
     void version;
     previewBusy = true;
-    compiled = { html: "", warnings: 0, error: "", manifest: undefined };
     if (markdownPending > 0) return;
     const source = editor.document;
     let active = true;
@@ -371,9 +360,10 @@ PDF export works out of the box: this sample already carries a title and author.
   });
 
   async function setView(next: "edit" | "preview"): Promise<void> {
-    if (next === "preview") previewBusy = true;
     view = next;
     await flushSource();
+    const target = next === "preview" ? previewSection : editorSection;
+    target?.scrollIntoView({ block: "start" });
   }
 
   async function addBlock(type: string): Promise<void> {
@@ -495,6 +485,17 @@ PDF export works out of the box: this sample already carries a title and author.
 <svelte:window onkeydown={onWindowKeydown} />
 
 <div class="flex h-full min-h-[70vh] flex-col gap-4">
+  {#if !draftReady}
+    <div
+      class="grid min-w-0 gap-4 lg:grid-cols-2"
+      aria-busy="true"
+      aria-label="Loading playground"
+    >
+      <div class="h-[70vh] animate-pulse rounded-xl border border-line bg-surface"></div>
+      <div class="h-[40vh] animate-pulse rounded-xl border border-line bg-surface lg:h-[70vh]"></div>
+      <p class="sr-only" role="status">Loading playground…</p>
+    </div>
+  {:else}
   <div
     class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bg px-2 py-2"
   >
@@ -646,16 +647,21 @@ PDF export works out of the box: this sample already carries a title and author.
   <div class="grid min-w-0 gap-4 lg:grid-cols-2">
     <section
       aria-label="Document editor"
-      class="min-w-0 max-h-[75vh] space-y-4 overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 {view === 'preview' ? 'hidden lg:block' : ''}"
+      bind:this={editorSection}
+      class="min-w-0 max-h-[70vh] space-y-4 overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4"
     >
       <h2 class="font-display text-lg font-semibold">Editor</h2>
       {#if mode === "blocks"}
         {#if blocks.length === 0}
           <p class="text-sm text-muted">
-            No blocks. Press <kbd
-              class="rounded border border-line bg-raised px-1 font-mono text-xs"
-            >Ctrl+K</kbd
-            > or use “Add block”.
+            No blocks yet.
+            <button
+              type="button"
+              class="ml-1 text-accent underline underline-offset-2"
+              onclick={() => (paletteOpen = true)}
+            >
+              Add block
+            </button>
           </p>
         {:else}
           {#each blocks as block (block.id)}
@@ -666,6 +672,12 @@ PDF export works out of the box: this sample already carries a title and author.
                   selected={selectedId === block.id}
                   onSelect={(id) => (selectedId = id)}
                   onUpdate={(id, data) => editor.updateBlock(id, data)}
+                  onRemove={(id) => {
+                    editor.removeBlock(id);
+                    if (selectedId === id) selectedId = undefined;
+                  }}
+                  onMove={(id, direction) => editor.moveBlock(id, direction)}
+                  onDuplicate={(id) => duplicate(id)}
                 />
               {:else}
                 <p class="text-sm text-muted">Loading math editor…</p>
@@ -707,18 +719,20 @@ PDF export works out of the box: this sample already carries a title and author.
     <section
       aria-label="Compiled preview"
       aria-busy={previewBusy}
-      class="publication-wide min-w-0 max-h-[75vh] overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 {view === 'edit' ? 'hidden lg:block' : ''}"
+      bind:this={previewSection}
+      class="publication-wide min-w-0 max-h-[50vh] overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 lg:max-h-[70vh]"
     >
       <h2 class="mb-2 font-display text-lg font-semibold">Live preview</h2>
       <p class="mb-3 text-xs text-muted">Your compiled article, with working interactive blocks.</p>
       {#if previewBusy}
-        <p role="status" class="text-sm text-muted">Updating preview…</p>
-      {:else if compiled.error}
+        <p role="status" class="mb-3 text-sm text-muted">Updating preview…</p>
+      {/if}
+      {#if compiled.error}
         <p class="whitespace-pre-wrap rounded-lg border border-danger bg-surface px-3 py-2 font-mono text-xs">
           {compiled.error}
         </p>
-      {:else}
-        <div class="publisle-preview" bind:this={previewEl}>
+      {:else if compiled.html}
+        <div class="publisle-preview" class:opacity-70={previewBusy} bind:this={previewEl}>
           {#if previewTitle}<h2 class="mb-4 font-display text-2xl font-semibold">{previewTitle}</h2>{/if}
           {@html compiled.html}
         </div>
@@ -735,6 +749,7 @@ PDF export works out of the box: this sample already carries a title and author.
     <kbd class="rounded border border-line bg-raised px-1 font-mono">Esc</kbd>
     back to editor
   </p>
+  {/if}
 </div>
 
 <BlockPalette

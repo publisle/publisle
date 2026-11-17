@@ -4,6 +4,7 @@ import Article from "@publisle/adapter-astro/Article.astro";
 import DocsSearch from "../../components/DocsSearch.svelte";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import DocsSidebar from "../../components/DocsSidebar.astro";
+import { anchorHeadings } from "../../lib/heading-anchors";
 import { docRawRoute, docRepoPath } from "../../lib/docs-source";
 
 export async function getStaticPaths() {
@@ -15,6 +16,9 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
+const anchored = anchorHeadings(entry.data.publication.html);
+const publication = { ...entry.data.publication, html: anchored.html };
+const toc = anchored.toc;
 
 const entries = await getCollection("docs");
 const sectionEntries = entries
@@ -110,14 +114,32 @@ const jsonLd = [
         <span aria-hidden="true"> / </span>
         <span aria-current="page" class="text-ink">{entry.data.title}</span>
       </nav>
-      <p class="mb-2 text-xs tracking-wide text-muted uppercase">
+      <h1 class="font-display text-4xl font-bold">{entry.data.title}</h1>
+      <p class="mt-3 max-w-2xl text-muted">{entry.data.description}</p>
+      {
+        toc.length > 0 && (
+          <nav aria-label="On this page" class="mt-6 rounded-lg border border-line bg-surface p-4 text-sm">
+            <p class="font-medium">On this page</p>
+            <ul class="mt-2 space-y-1">
+              {toc.map((item) => (
+                <li class={item.level === 3 ? "pl-4" : ""}>
+                  <a href={`#${item.id}`} class="text-muted hover:text-accent">
+                    {item.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      <p class="mt-6 mb-2 text-xs tracking-wide text-muted uppercase">
         {entry.data.section === "guides" ? "Guide" : "Standard"} ·
         <a href={raw} class="hover:text-accent">Markdown source</a> ·
         <a href={githubSource} class="hover:text-accent">View on GitHub</a>
       </p>
       <DocsSearch client:load />
       <div class="mt-6" data-pagefind-body>
-        <Article publication={entry.data.publication} instanceId={`docs-${entry.id.replaceAll("/", "-")}`}/>
+        <Article publication={publication} instanceId={`docs-${entry.id.replaceAll("/", "-")}`}/>
       </div>
 
       <nav aria-label="Adjacent pages" class="mt-12 flex justify-between gap-4 border-t border-line pt-6 text-sm">
