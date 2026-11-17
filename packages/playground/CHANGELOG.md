@@ -1,5 +1,20 @@
 # @publisle/playground
 
+## 0.2.7
+
+### Patch Changes
+
+- d405ca1: Name each code block's language and highlight the common ones, including
+  JavaScript, TypeScript, Python, JSON, HTML, CSS, Bash, Rust, Go, Java, C,
+  C++, SQL, and YAML.
+- 6d20660: Show an arrow beside the block move buttons so the direction is visible
+  without reading the label.
+- e5b1762: Keep an empty figure as a placeholder instead of failing the document, and
+  render a warning in place of an unsafe figure URL. The playground edits list
+  items, links, and images as fields so inline math and task state stay put.
+- Updated dependencies [e5b1762]
+  - @publisle/core@0.1.4
+
 ## 0.2.6
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @publisle/core
 
+## 0.1.4
+
+### Patch Changes
+
+- e5b1762: Keep an empty figure as a placeholder instead of failing the document, and
+  render a warning in place of an unsafe figure URL. The playground edits list
+  items, links, and images as fields so inline math and task state stay put.
+
 ## 0.1.3
 
 ### Patch Changes
