@@ -282,6 +282,9 @@ function prepareDocument(
         continue;
       }
       if (visit.kind === "resource") {
+        // An empty figure source is an authoring placeholder, not a resource.
+        if (typeof visit.value === "string" && visit.value.trim() === "")
+          continue;
         resourcePlanner.add(
           typeof visit.value === "string" ? { uri: visit.value } : visit.value,
         );

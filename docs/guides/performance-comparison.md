@@ -51,7 +51,7 @@ The [raw report](../assets/performance/ecosystem.json) records the environment, 
 
 ## PDF compilation
 
-Hosted PDF work has a separate budget: the API, Docker runtime, and compiler share half a CPU and 512 MiB, with swap disabled. Cache hits and queue wait are separate from uncached compilation. Timings distinguish preparation, image retrieval, source generation, LaTeX execution, and container overhead. Figures in the controlled benchmark use local fixture bytes through the normal validated download path, excluding network variability. The FFT diagnostic adds an illustrative author required for journal export; the Arabic diagnostic substitutes a supported SVG figure for its repository-only PDF figure. These adapted inputs are identical across backends and identified by source hashes.
+Hosted PDF work has a separate budget: the API, Docker runtime, and compiler share the host's remaining CPUs and memory after a reserve of 1 vCPU and 1 GiB, with swap disabled. Cache hits and queue wait are separate from uncached compilation. Timings distinguish preparation, image retrieval, source generation, LaTeX execution, and container overhead. Figures in the controlled benchmark use local fixture bytes through the normal validated download path, excluding network variability. The FFT diagnostic adds an illustrative author required for journal export; the Arabic diagnostic substitutes a supported SVG figure for its repository-only PDF figure. These adapted inputs are identical across backends and identified by source hashes.
 
 ```sh
 PDF_QA_BENCHMARK=true PDF_BENCH_CASES=research \

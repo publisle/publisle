@@ -23,6 +23,8 @@ describe("site accessibility and CSP", () => {
   it("allows the PDF API in the built-in CSP", () => {
     const config = readFileSync(join(site, "astro.config.ts"), "utf8");
     expect(config).toContain("security:");
-    expect(config).toContain("connect-src 'self' https://api.publisle.xyz");
+    expect(config).toContain(
+      "connect-src 'self' https://api.publisle.xyz https://api.github.com",
+    );
   });
 });

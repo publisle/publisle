@@ -15,12 +15,13 @@ versions. Research pins an exact external native compiler version published from
    tested tarballs, publishes through OIDC with provenance, verifies registry
    integrity, and creates a GitHub release for each `@publisle/package@version`.
 4. The PDF deployment runs automatically after publication checks. It validates
-   the candidate within 0.5 CPU / 512 MiB with no swap, checks health and engine
-   defaults, and restores the previous API configuration on failure.
+   the candidate inside the host-sized PDF slice with no swap, checks health and
+   engine defaults, and restores the previous API configuration on failure.
 
 The activation entry point snapshots and loads both native and LaTeX worker
-archives from the same release. Both images are verified inside the 0.5 CPU /
-512 MiB budget: the native image with the full latency gate, the LaTeX image with
+archives from the same release. Both images are verified inside that budget,
+which is the host's remaining CPUs and memory after reserving 1 vCPU and 1 GiB:
+the native image with the full latency gate, the LaTeX image with
 one compile per template using its default engine, in a separate small process
 so the harness does not compete with the LaTeX container for the slice. Non-default
 engines are not gated: LuaLaTeX on `ieee-journal` is at the edge of the budget with
