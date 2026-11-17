@@ -127,26 +127,39 @@ export function verifyP0Evidence(
   };
 }
 
+const acceptanceEvidence = [
+  "packages/adapter-react/tests/production.acceptance.test.ts",
+  "packages/adapter-svelte/tests/production.acceptance.test.ts",
+  "packages/adapter-react/tests/delivery.acceptance.test.ts",
+  "packages/adapter-svelte/tests/delivery.acceptance.test.ts",
+  "packages/adapter-core/tests/python.acceptance.test.ts",
+  "packages/adapter-core/tests/fourier.acceptance.test.ts",
+  "packages/adapter-core/tests/lifecycle.acceptance.test.ts",
+  "packages/adapter-core/tests/composition.acceptance.test.ts",
+];
+
 async function main(): Promise<void> {
   const temporary = await mkdtemp(join(tmpdir(), "publisle-p0-"));
+  const reportFlag = process.argv.indexOf("--unit-report");
+  const unitReport =
+    reportFlag === -1 ? undefined : process.argv[reportFlag + 1];
   try {
-    execFileSync(
-      process.env["PUBLISLE_PYTHON"] ?? "python3",
-      ["-B", "-m", "unittest", "discover", "-s", "tools/python", "-v"],
-      { stdio: "inherit", timeout: 60_000 },
-    );
     const evidence: Evidence[] = [];
-    for (const mode of ["unit", "browser"] as const) {
-      const output = join(temporary, `${mode}.json`);
+    if (unitReport) {
+      evidence.push(...reportEvidence(parseJson(await readFile(unitReport))));
+    } else {
+      execFileSync(
+        process.env["PUBLISLE_PYTHON"] ?? "python3",
+        ["-B", "-m", "unittest", "discover", "-s", "tools/python", "-v"],
+        { stdio: "inherit", timeout: 60_000 },
+      );
+      const output = join(temporary, "unit.json");
       execFileSync(
         "pnpm",
         [
           "exec",
           "vitest",
           "run",
-          ...(mode === "browser"
-            ? ["--config", "vitest.acceptance.config.ts"]
-            : []),
           "--reporter=default",
           "--reporter=json",
           `--outputFile=${output}`,
@@ -155,6 +168,23 @@ async function main(): Promise<void> {
       );
       evidence.push(...reportEvidence(parseJson(await readFile(output))));
     }
+    const browserOutput = join(temporary, "browser.json");
+    execFileSync(
+      "pnpm",
+      [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.acceptance.config.ts",
+        "--reporter=default",
+        "--reporter=json",
+        `--outputFile=${browserOutput}`,
+        ...acceptanceEvidence,
+      ],
+      { stdio: "inherit", timeout: 300_000 },
+    );
+    evidence.push(...reportEvidence(parseJson(await readFile(browserOutput))));
     const matrix = verifyP0Evidence(evidence);
     for (const [id, tests] of Object.entries(matrix))
       console.log(
