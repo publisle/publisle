@@ -8,6 +8,14 @@ allowBuilds:
   esbuild: true
   sharp: true
 
+# @astrojs/astro2tsx pins @emnapi/core@1.11.3 but not the matching runtime.
+# pnpm otherwise pairs it with rolldown's @emnapi/runtime@2, and astro check
+# then fails while loading @astrojs/check.
+packageExtensions:
+  "@astrojs/astro2tsx":
+    dependencies:
+      "@emnapi/runtime": "1.11.3"
+
 minimumReleaseAgeExclude:
   - "@publisle/pdf-native-darwin-arm64@0.6.6"
   - "@publisle/pdf-native-darwin-x64@0.6.6"

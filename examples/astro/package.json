@@ -6,11 +6,11 @@
     "build": "astro build"
   },
   "dependencies": {
+    "@publisle/adapter-astro": "workspace:*",
     "@publisle/adapter-core": "workspace:*",
     "@publisle/blocks-core": "workspace:*",
     "@publisle/core": "workspace:*",
     "@publisle/schema": "workspace:*",
-    "@publisle/adapter-astro": "workspace:*",
-    "astro": "^7.2.8"
+    "astro": "^7.4.7"
   }
 }

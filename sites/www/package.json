@@ -26,7 +26,7 @@
     "@publisle/research": "workspace:*",
     "@publisle/schema": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.2.8",
+    "astro": "^7.4.7",
     "svelte": "^5.0.0",
     "tailwindcss": "^4.3.3"
   },
