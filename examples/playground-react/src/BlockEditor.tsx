@@ -14,8 +14,14 @@ import {
   setFieldJson,
   setFieldValue,
   setFlowText,
+  insertListItem,
+  listItemEdits,
+  removeListItem,
   setListText,
   setSegmentText,
+  setSegmentUrl,
+  updateListItemChecked,
+  updateListItemText,
   setTableText,
   tableText,
 } from "@publisle/playground-core";
@@ -51,14 +57,14 @@ export function BlockEditor({
             onClick={() => onMove(block.id, "up")}
             aria-label="Move block up"
           >
-            ↑
+            Up
           </button>
           <button
             type="button"
             onClick={() => onMove(block.id, "down")}
             aria-label="Move block down"
           >
-            ↓
+            Down
           </button>
           <button
             type="button"
@@ -132,6 +138,24 @@ function FieldControl({
                 })
               }
             />
+            {segment.url !== undefined ? (
+              <input
+                type="url"
+                aria-label={`${segment.label} URL`}
+                value={segment.url}
+                placeholder="https://"
+                onChange={(event) =>
+                  onUpdate(block.id, {
+                    ...data,
+                    [spec.key]: setSegmentUrl(
+                      nodes as readonly unknown[],
+                      segment.index,
+                      event.target.value,
+                    ),
+                  })
+                }
+              />
+            ) : null}
             <button
               type="button"
               aria-label={`Remove ${segment.label}`}
@@ -212,19 +236,102 @@ function FieldControl({
     );
   }
 
+  if (spec.kind === "list") {
+    const rows = listItemEdits(data[spec.key]);
+    return (
+      <fieldset className="field">
+        <legend>{spec.label}</legend>
+        {rows.map((row) => (
+          <div className="segment" key={row.index}>
+            <input
+              type="checkbox"
+              aria-label={`Task ${row.index + 1}`}
+              checked={row.checked === true}
+              onChange={(event) =>
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: updateListItemChecked(
+                    data[spec.key],
+                    row.index,
+                    event.target.checked,
+                  ),
+                })
+              }
+            />
+            <input
+              aria-label={`Item ${row.index + 1}`}
+              value={row.text}
+              onChange={(event) =>
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: updateListItemText(
+                    data[spec.key],
+                    row.index,
+                    event.target.value,
+                  ),
+                })
+              }
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" || row.index !== rows.length - 1)
+                  return;
+                event.preventDefault();
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: insertListItem(data[spec.key], row.index),
+                });
+              }}
+            />
+            <button
+              type="button"
+              aria-label={`Remove item ${row.index + 1}`}
+              onClick={() =>
+                onUpdate(block.id, {
+                  ...data,
+                  [spec.key]: removeListItem(data[spec.key], row.index),
+                })
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            onUpdate(block.id, {
+              ...data,
+              [spec.key]: insertListItem(
+                data[spec.key],
+                Math.max(0, rows.length - 1),
+              ),
+            })
+          }
+        >
+          Add item
+        </button>
+      </fieldset>
+    );
+  }
+
   if (spec.kind === "flow" || spec.kind === "rows") {
+    const previous = data[spec.key];
     const text =
       spec.kind === "flow"
-        ? flowText(data[spec.key] as never)
+        ? flowText(previous as never)
         : spec.key === "rows"
-          ? tableText(data[spec.key] as never)
-          : listText(data[spec.key]);
-    const apply = (next: string) =>
-      spec.kind === "flow"
-        ? setFlowText(next)
-        : spec.key === "rows"
-          ? setTableText(next)
-          : setListText(next);
+          ? tableText(previous as never)
+          : listText(previous);
+    const apply = (next: string) => {
+      if (spec.kind === "flow") {
+        if (flowText(previous as never) === next) return previous;
+        return setFlowText(next);
+      }
+      if (spec.key === "rows") {
+        if (tableText(previous as never) === next) return previous;
+        return setTableText(next);
+      }
+      return setListText(next);
+    };
     return (
       <label className="field">
         {spec.label}
@@ -243,15 +350,33 @@ function FieldControl({
     );
   }
 
+  if (spec.kind === "textarea") {
+    return (
+      <label className="field">
+        {spec.label}
+        <textarea
+          rows={spec.rows ?? 3}
+          value={String(value)}
+          placeholder={spec.placeholder ?? ""}
+          onChange={(event) => update(event.target.value)}
+        />
+        {spec.hint ? <small className="muted">{spec.hint}</small> : null}
+      </label>
+    );
+  }
+
   return (
     <label className="field">
       {spec.label}
       <input
-        type={spec.kind === "textarea" ? "text" : spec.kind}
+        type={spec.kind === "number" ? "number" : "text"}
         value={String(value)}
         placeholder={spec.placeholder ?? ""}
         onChange={(event) => update(event.target.value)}
       />
+      {spec.key === "src" && String(value) ? (
+        <img src={String(value)} alt="" className="figure-thumb" />
+      ) : null}
       {spec.hint ? <small className="muted">{spec.hint}</small> : null}
     </label>
   );

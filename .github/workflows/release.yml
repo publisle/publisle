@@ -32,6 +32,37 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node tools/check-changeset.ts
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    outputs:
+      research: ${{ steps.filter.outputs.research }}
+      pdf: ${{ steps.filter.outputs.pdf }}
+      native: ${{ steps.filter.outputs.native }}
+      distribution: ${{ steps.filter.outputs.distribution }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            research:
+              - 'packages/research/**'
+              - 'packages/template-*/**'
+              - 'packages/cli-research/**'
+            pdf:
+              - 'packages/pdf-service/**'
+              - 'packages/research/**'
+              - 'deploy/vps/**'
+            native:
+              - 'packages/research/**'
+              - 'packages/cli-research/**'
+              - 'tools/native-consumer-proof.mjs'
+              - 'deploy/vps/native-runtime/**'
+            distribution:
+              - 'packages/**'
+              - 'blocks/**'
+              - 'pnpm-lock.yaml'
   check:
     needs: changeset
     uses: ./.github/workflows/check.yml
@@ -39,19 +70,103 @@ jobs:
     needs: changeset
     uses: ./.github/workflows/docs.yml
   research:
-    needs: changeset
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.research == 'true')
     uses: ./.github/workflows/research.yml
+  research-skipped:
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.research != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Research paths are unchanged. The TeX gate still runs on main.'
   native-consumers:
-    needs: changeset
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.native == 'true')
     uses: ./.github/workflows/native-consumers.yml
+  native-skipped:
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.native != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Native consumer paths are unchanged. The matrix still runs on main.'
   pdf:
-    needs: changeset
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.pdf == 'true')
     uses: ./.github/workflows/pdf-service.yml
+  pdf-skipped:
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.pdf != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'PDF service paths are unchanged. The Docker gate still runs on main.'
   distribution:
-    needs: changeset
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.distribution == 'true')
     uses: ./.github/workflows/distribution.yml
+  distribution-skipped:
+    needs: [changeset, changes]
+    if: >-
+      always() &&
+      needs.changeset.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.distribution != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'Package paths are unchanged. Packed consumers still run on main.'
   validate:
-    needs: [check, docs, research, distribution, pdf, native-consumers]
+    needs:
+      [
+        check,
+        docs,
+        research,
+        research-skipped,
+        distribution,
+        distribution-skipped,
+        pdf,
+        pdf-skipped,
+        native-consumers,
+        native-skipped,
+      ]
+    if: >-
+      always() &&
+      needs.check.result == 'success' &&
+      needs.docs.result == 'success' &&
+      (needs.research.result == 'success' || needs.research-skipped.result == 'success') &&
+      needs.research.result != 'failure' &&
+      needs.research.result != 'cancelled' &&
+      (needs.distribution.result == 'success' || needs.distribution-skipped.result == 'success') &&
+      needs.distribution.result != 'failure' &&
+      needs.distribution.result != 'cancelled' &&
+      (needs.pdf.result == 'success' || needs.pdf-skipped.result == 'success') &&
+      needs.pdf.result != 'failure' &&
+      needs.pdf.result != 'cancelled' &&
+      (needs.native-consumers.result == 'success' || needs.native-skipped.result == 'success') &&
+      needs.native-consumers.result != 'failure' &&
+      needs.native-consumers.result != 'cancelled'
     runs-on: ubuntu-24.04
     steps:
       - run: echo 'All required checks and packed consumers passed before publication.'

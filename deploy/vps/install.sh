@@ -63,7 +63,8 @@ if ! awk -F: '$1 == "publisle" { found=1 } END { exit !found }' /etc/subuid; the
   SUBID_START="$(awk -F: 'BEGIN { nextid=100000 } { end=$2+$3; if(end>nextid) nextid=end } END { print nextid }' /etc/subuid /etc/subgid)"
   usermod --add-subuids "$SUBID_START-$((SUBID_START + 65535))" --add-subgids "$SUBID_START-$((SUBID_START + 65535))" publisle
 fi
-install -m 0644 "$SCRIPT_DIR/publisle-pdf.slice" /etc/systemd/system/publisle-pdf.slice
+node "$SCRIPT_DIR/write-slice.mjs" /etc/systemd/system/publisle-pdf.slice /etc/publisle-pdf-budget.json
+chmod 0644 /etc/systemd/system/publisle-pdf.slice /etc/publisle-pdf-budget.json
 # Rootless containers are placed by runc directly inside the delegated daemon
 # subtree; the systemd cgroup driver would require polkit grants for the
 # daemon's non-login scope creation on stricter distributions.

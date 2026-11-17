@@ -1,5 +1,7 @@
 [Unit]
 Description=Aggregate budget for Publisle PDF API, runtime and compilation
+# Placeholder only. install.sh replaces this unit with the host-sized budget.
+# These 50% / 512M values are not the production configuration.
 
 [Slice]
 CPUQuota=50%

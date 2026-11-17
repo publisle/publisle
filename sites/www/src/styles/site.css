@@ -196,6 +196,10 @@
     @apply my-1.5;
   }
 
+  .publisle-document li > p {
+    margin-block: 0;
+  }
+
   .publisle-document pre {
     @apply my-5 overflow-x-auto rounded-lg border border-line bg-raised p-4 font-mono text-sm leading-6;
   }
@@ -223,6 +227,26 @@
 
   .publisle-document hr {
     @apply my-8 border-line;
+  }
+
+  .publisle-document .publisle-callout {
+    @apply my-5 rounded-lg border border-l-4 border-line border-l-accent bg-raised px-4 py-3;
+  }
+
+  .publisle-document .publisle-callout-warning {
+    @apply border-l-warning;
+  }
+
+  .publisle-document .publisle-callout-error {
+    @apply border-l-danger;
+  }
+
+  .publisle-document .publisle-callout > strong {
+    @apply block;
+  }
+
+  .publisle-document .publisle-callout > p {
+    @apply my-1;
   }
 
   .publisle-document a {
@@ -456,7 +480,7 @@
   }
 
   :root:not([data-theme="light"])
-    .publisle-figure-themed
+    .publisle-figure-themed:has(img[data-publisle-variant="dark"])
     img:not([data-publisle-variant]) {
     display: none;
   }
@@ -469,26 +493,43 @@
 }
 
 :root[data-theme="dark"]
-  .publisle-figure-themed
+  .publisle-figure-themed:has(img[data-publisle-variant="dark"])
   img:not([data-publisle-variant]) {
   display: none;
 }
 
+:root[data-theme="dark"]
+  .publisle-figure-themed:not(:has(img[data-publisle-variant="dark"]))
+  img:not([data-publisle-variant]) {
+  display: block;
+}
+
 /* Playground editor primitives (promoted from the example hosts). */
 .block-editor {
-  @apply rounded-lg border border-line bg-surface p-4;
+  @apply rounded-lg border border-line bg-surface p-4 sm:p-5;
 }
 
 .block-editor__header {
-  @apply mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2;
+  @apply mb-4 flex flex-col items-stretch gap-3 border-b border-line pb-3 sm:flex-row sm:items-center sm:justify-between;
 }
 
 .block-editor__actions {
-  @apply flex flex-wrap gap-1;
+  @apply flex flex-wrap gap-2;
 }
 
+/* Readable, tappable on a phone (44px); compact again from `sm`. */
 .block-editor__actions button {
-  @apply rounded border border-line px-2 py-0.5 text-xs hover:border-accent hover:text-accent;
+  @apply min-h-11 min-w-11 rounded border border-line px-3 text-sm hover:border-accent hover:text-accent sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-0.5 sm:text-xs;
+}
+
+/* Other block-editor buttons get a phone-sized hit area too. */
+@media (max-width: 639px) {
+  .field--segments button,
+  fieldset.field button,
+  .block-editor select {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
 }
 
 /* Short controls (`.field--short`) pair up from `sm`; textareas, segment
@@ -629,9 +670,6 @@ main p a {
   white-space: normal;
 }
 @media (max-width: 639px) {
-  .block-editor {
-    padding: 0.75rem;
-  }
   /* Row one: chip + remove button. Row two: the editor. */
   .segment {
     flex-wrap: wrap;
@@ -648,11 +686,39 @@ main p a {
   }
 }
 
-/* Copy control for authored code samples. The compiled preview keeps its own
-   pre elements and is excluded by the script. */
-pre:has(> button.copy-code) {
+/* Reserve the copy-button row before the script inserts the control.
+   The compiled preview keeps its own pre elements and is excluded. */
+.publisle-document pre {
   position: relative;
   padding-top: 2.5rem;
+}
+
+.publisle-preview .publisle-document pre,
+[aria-label="Compiled preview"] .publisle-document pre {
+  padding-top: 1rem;
+}
+
+.publisle-document pre.publisle-code,
+.publisle-preview .publisle-document pre.publisle-code,
+[aria-label="Compiled preview"] .publisle-document pre.publisle-code {
+  padding-top: 2.5rem;
+}
+
+pre.source-sample {
+  position: relative;
+  padding: 2.5rem 1rem 1rem;
+}
+
+.route-status {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 0.35rem 1rem;
+  background: var(--accent, #9b3214);
+  color: var(--bg, #fff);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 button.copy-code {
@@ -675,4 +741,120 @@ button.copy-code:focus,
 button.copy-code:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* Static miniature of a compiled block (inserter and palette previews).
+   Decorative and author-controlled; unlayered so it also wins over the
+   unlayered `.publisle-document pre` rule above. */
+.block-sample.publisle-document {
+  width: 100%;
+  max-width: none;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  overflow: hidden;
+  overflow-wrap: normal;
+  pointer-events: none;
+  text-align: left;
+  user-select: none;
+}
+
+.block-sample--lg.publisle-document {
+  font-size: 0.8125rem;
+}
+
+.block-sample.publisle-document
+  :is(
+    p,
+    ul,
+    ol,
+    pre,
+    blockquote,
+    figure,
+    table,
+    h2,
+    hr,
+    aside,
+    li,
+    figcaption
+  ) {
+  margin: 0;
+}
+
+.block-sample.publisle-document h2 {
+  border: 0;
+  padding: 0;
+  font-size: 1.35em;
+  line-height: 1.2;
+}
+
+.block-sample.publisle-document :is(ul, ol) {
+  padding-left: 1.3em;
+  line-height: 1.35;
+}
+
+.block-sample.publisle-document pre {
+  padding: 0.35em 0.55em;
+  font-size: 1em;
+  line-height: 1.4;
+  white-space: pre;
+}
+
+.block-sample.publisle-document blockquote {
+  padding-left: 0.6em;
+  border-left-width: 3px;
+}
+
+.block-sample.publisle-document table {
+  display: table;
+  width: 100%;
+  font-size: 1em;
+}
+
+.block-sample.publisle-document :is(th, td) {
+  padding: 0.2em 0.5em;
+}
+
+.block-sample.publisle-document .publisle-callout {
+  padding: 0.35em 0.6em;
+}
+
+.block-sample.publisle-document .publisle-figure-placeholder {
+  padding: 0.3em 0.5em;
+}
+
+.block-sample.publisle-document .publisle-callout > p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block-sample.publisle-document figcaption {
+  margin-top: 0.25em;
+  color: var(--text-muted);
+}
+
+.block-sample.publisle-document svg {
+  width: 100%;
+  height: 2.25em;
+  color: var(--text-muted);
+}
+
+.block-sample.publisle-document hr {
+  margin: 0.35em 0;
+}
+
+.block-sample__math {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 1.25em;
+  text-align: center;
+}
+
+.block-sample__math i {
+  font-style: italic;
+}
+
+.block-sample__math sup {
+  font-size: 0.7em;
+  font-style: normal;
 }

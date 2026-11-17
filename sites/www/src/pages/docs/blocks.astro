@@ -1,0 +1,90 @@
+---
+import Article from "@publisle/adapter-astro/Article.astro";
+import { preparePublication } from "@publisle/adapter-astro";
+import { coreBlockDefinitions } from "@publisle/blocks-core";
+import { createRegistry } from "@publisle/core";
+import { fromMarkdown } from "@publisle/markdown";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const registry = createRegistry(coreBlockDefinitions);
+
+const samples = [
+  {
+    title: "Paragraph and link",
+    markdown: "A paragraph can include a [link](https://publisle.xyz/docs/) in the sentence.",
+  },
+  { title: "Heading", markdown: "## A section heading" },
+  {
+    title: "List",
+    markdown: "- First item\n- Second item with a [link](https://publisle.xyz/)\n- Third item",
+  },
+  { title: "Quote", markdown: "> A quotation stays a quotation." },
+  {
+    title: "Figure",
+    markdown:
+      '![Publisle lockup](/brand/lockup-dark.svg "The Publisle lockup")',
+  },
+  {
+    title: "Code",
+    markdown: "```ts\nconst article = document({ blocks: [] });\n```",
+  },
+  { title: "Math", markdown: "$$\nE = mc^2\n$$" },
+  {
+    title: "Table",
+    markdown: "| Bin | Magnitude |\n| --- | --- |\n| 2 | 4 |\n| 6 | 4 |",
+  },
+  {
+    title: "Callout",
+    markdown:
+      ':::callout{variant="info" title="Note"}\nCallouts keep a title and a short body.\n:::',
+  },
+];
+
+const compiled = samples.map((sample) => {
+  const imported = fromMarkdown(sample.markdown, { sourceName: sample.title });
+  if (!imported.document) {
+    throw new Error(
+      imported.diagnostics.map((item) => item.message).join("\n"),
+    );
+  }
+  return {
+    ...sample,
+    publication: preparePublication(imported.document, { registry }),
+  };
+});
+---
+
+<BaseLayout
+  title="Blocks · Publisle Docs"
+  description="Each core Publisle block, compiled beside the Markdown that produced it."
+  path="/docs/blocks/"
+>
+  <div class="py-12">
+    <p class="text-sm text-muted">
+      <a href="/docs/" class="hover:text-accent">Docs</a>
+    </p>
+    <h1 class="mt-2 font-display text-4xl font-bold">Blocks</h1>
+    <p class="mt-3 max-w-2xl text-muted">
+      Each sample is compiled at build time with the same pipeline as the
+      documentation. The preview is the publication. The source is the Markdown.
+    </p>
+    <div class="mt-10 space-y-8">
+      {
+        compiled.map((sample) => (
+          <section class="grid gap-4 rounded-xl border border-line bg-surface p-4 lg:grid-cols-2">
+            <div>
+              <h2 class="font-display text-xl font-semibold">{sample.title}</h2>
+              <div class="publisle-preview mt-3">
+                <Article
+                  publication={sample.publication}
+                  instanceId={`block-${sample.title.replaceAll(/\W+/g, "-").toLowerCase()}`}
+                />
+              </div>
+            </div>
+            <pre class="source-sample overflow-x-auto rounded-lg border border-line bg-raised font-mono text-sm"><code>{sample.markdown}</code></pre>
+          </section>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
