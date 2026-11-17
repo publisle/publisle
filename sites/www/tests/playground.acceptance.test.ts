@@ -623,15 +623,17 @@ it("adds blocks without a dialog from the pinned inserter and between blocks on 
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(320);
 
-    // The inserter stays pinned to the top of the scrolling editor.
+    // The shelf sits above the editor, so scrolling the document does not
+    // drag the block choices with it.
+    const editorBounds = await editor.boundingBox();
+    const shelf = await inserter.boundingBox();
+    expect((shelf?.y ?? 0) + (shelf?.height ?? 0)).toBeLessThanOrEqual(
+      (editorBounds?.y ?? 0) + 8,
+    );
     await editor.evaluate((element) => {
       element.scrollTop = 200;
     });
-    const editorBounds = await editor.boundingBox();
-    const pinned = await inserter.boundingBox();
-    expect(Math.abs((pinned?.y ?? 0) - (editorBounds?.y ?? 0))).toBeLessThan(
-      24,
-    );
+    expect((await inserter.boundingBox())?.y).toBeCloseTo(shelf?.y ?? 0, 0);
 
     // One tap inserts after the selection and focuses the new field; no dialog.
     const before = await editor.locator("[data-block-id]").count();

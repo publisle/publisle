@@ -506,15 +506,15 @@
 
 /* Playground editor primitives (promoted from the example hosts). */
 .block-editor {
-  @apply rounded-lg border border-line bg-surface p-4;
+  @apply rounded-lg border border-line bg-surface p-4 sm:p-5;
 }
 
 .block-editor__header {
-  @apply mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2;
+  @apply mb-4 flex flex-col items-stretch gap-3 border-b border-line pb-3 sm:flex-row sm:items-center sm:justify-between;
 }
 
 .block-editor__actions {
-  @apply flex flex-wrap gap-1.5;
+  @apply flex flex-wrap gap-2;
 }
 
 /* Readable, tappable on a phone (44px); compact again from `sm`. */
@@ -670,9 +670,6 @@ main p a {
   white-space: normal;
 }
 @media (max-width: 639px) {
-  .block-editor {
-    padding: 0.75rem;
-  }
   /* Row one: chip + remove button. Row two: the editor. */
   .segment {
     flex-wrap: wrap;

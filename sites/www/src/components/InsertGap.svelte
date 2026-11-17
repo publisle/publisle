@@ -26,31 +26,35 @@
 <div
   role="group"
   aria-label="Insert after block {position}"
-  class="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-dashed border-line/70 pt-1"
+  class="flex flex-col items-center gap-2 py-1"
 >
-  <button
-    type="button"
-    class="inline-flex min-h-11 items-center gap-1 rounded-md px-3 text-sm text-muted hover:text-accent lg:min-h-8 lg:px-2 lg:text-xs"
-    aria-label="Insert paragraph after block {position}"
-    onclick={() => insert("publisle:paragraph")}
-  >
-    <span aria-hidden="true">+</span> Paragraph
-  </button>
-  <button
-    type="button"
-    class="inline-flex min-h-11 items-center gap-1 rounded-md px-3 text-sm text-muted hover:text-accent lg:min-h-8 lg:px-2 lg:text-xs"
-    aria-expanded={open}
-    aria-label="Choose a block type to insert after block {position}"
-    onclick={() => (open = !open)}
-  >
-    Other type <span aria-hidden="true">{open ? "▴" : "▾"}</span>
-  </button>
+  <div class="flex w-full items-center gap-3">
+    <span class="h-px flex-1 bg-line/80" aria-hidden="true"></span>
+    <button
+      type="button"
+      class="inline-flex size-9 items-center justify-center rounded-full border border-line text-muted hover:border-accent hover:text-accent"
+      aria-label="Insert paragraph after block {position}"
+      onclick={() => insert("publisle:paragraph")}
+    >
+      <span aria-hidden="true">+</span>
+    </button>
+    <button
+      type="button"
+      class="inline-flex h-9 items-center rounded-full border border-line px-3 text-xs text-muted hover:border-accent hover:text-accent"
+      aria-expanded={open}
+      aria-label="Choose a block type to insert after block {position}"
+      onclick={() => (open = !open)}
+    >
+      {open ? "Close" : "Other"}
+    </button>
+    <span class="h-px flex-1 bg-line/80" aria-hidden="true"></span>
+  </div>
   {#if open}
-    <div class="flex w-full flex-wrap gap-1.5 pb-1">
+    <div class="flex w-full flex-wrap justify-center gap-2">
       {#each items as item (item.type)}
         <button
           type="button"
-          class="inline-flex min-h-11 items-center rounded-full border border-line px-3.5 text-sm hover:border-accent hover:text-accent lg:min-h-8 lg:px-3 lg:text-xs"
+          class="inline-flex min-h-10 items-center rounded-full border border-line bg-bg px-3.5 text-sm hover:border-accent hover:text-accent"
           aria-label="Insert {item.label.toLowerCase()} after block {position}"
           onclick={() => insert(item.type)}
         >

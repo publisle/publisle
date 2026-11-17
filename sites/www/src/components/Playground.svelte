@@ -320,7 +320,6 @@ PDF export works out of the box: this sample already carries a title and author.
   const commonItems = COMMON_TYPES.filter((type) => types.includes(type)).map(
     (type) => ({ type, label: labels[type] ?? type }),
   );
-  let inserterHeight = $state(0);
 
   const previewActive = $derived(viewportKnown && draftReady);
   let previewBusy = $state(true);
@@ -416,8 +415,8 @@ PDF export works out of the box: this sample already carries a title and author.
         // already fully visible in the scrolling editor.
         const area = editorSection.getBoundingClientRect();
         const box = wrapper.getBoundingClientRect();
-        const offset = box.top - area.top - inserterHeight - 8;
-        const visibleHeight = editorSection.clientHeight - inserterHeight - 8;
+        const offset = box.top - area.top - 12;
+        const visibleHeight = editorSection.clientHeight - 16;
         if (offset < 0 || offset + box.height > visibleHeight)
           editorSection.scrollTop += offset;
       }
@@ -541,7 +540,7 @@ PDF export works out of the box: this sample already carries a title and author.
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<div class="flex h-full min-h-[70vh] flex-col gap-4">
+<div class="flex h-full min-h-[70vh] flex-col gap-6">
   {#if !draftReady}
     <div
       class="grid min-w-0 gap-4 lg:grid-cols-2"
@@ -694,32 +693,25 @@ PDF export works out of the box: this sample already carries a title and author.
     </section>
   </details>
 
-  <div class="grid min-w-0 gap-4 lg:grid-cols-2">
+  {#if mode === "blocks"}
+    <BlockInserter
+      items={commonItems}
+      empty={blocks.length === 0}
+      onInsert={(type) => void addBlock(type)}
+      onMore={() => (paletteOpen = true)}
+    />
+  {/if}
+
+  <div class="grid min-w-0 gap-6 lg:grid-cols-2">
     <section
       aria-label="Document editor"
       bind:this={editorSection}
-      class="min-w-0 max-h-[60svh] overflow-y-auto rounded-xl border border-line bg-surface lg:max-h-[70vh]"
+      class="min-w-0 max-h-[70svh] overflow-y-auto rounded-xl border border-line bg-surface lg:max-h-[74vh]"
     >
-      <h2 class="px-3 pt-3 font-display text-lg font-semibold sm:px-4 sm:pt-4">Editor</h2>
       {#if mode === "blocks"}
-        <div
-          class="sticky top-0 z-10 border-b border-line bg-surface/95 px-3 py-2 backdrop-blur sm:px-4"
-          bind:clientHeight={inserterHeight}
-        >
-          <BlockInserter
-            items={commonItems}
-            empty={blocks.length === 0}
-            onInsert={(type) => void addBlock(type)}
-            onMore={() => (paletteOpen = true)}
-          />
-        </div>
-        <div class="flex flex-col gap-3 p-3 sm:p-4">
+        <div class="flex flex-col gap-4 p-4 sm:p-5">
           {#each blocks as block, index (block.id)}
-            <div
-              data-block-id={block.id}
-              class="flex flex-col gap-1"
-              style="scroll-margin-top: {inserterHeight + 12}px"
-            >
+            <div data-block-id={block.id} class="flex flex-col gap-2">
               {#if block.type === "publisle:math"}
                 {#if MathBlockEditor}
                   <MathBlockEditor
@@ -785,7 +777,7 @@ PDF export works out of the box: this sample already carries a title and author.
       aria-label="Compiled preview"
       aria-busy={previewBusy}
       bind:this={previewSection}
-      class="publication-wide min-h-[24rem] min-w-0 max-h-[75svh] overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 lg:max-h-[70vh]"
+      class="publication-wide min-h-[24rem] min-w-0 max-h-[75svh] overflow-y-auto rounded-xl border border-line bg-surface p-4 sm:p-6 lg:max-h-[74vh]"
     >
       <h2 class="mb-2 font-display text-lg font-semibold">Live preview</h2>
       <p class="mb-3 text-xs text-muted">Your compiled article, with working interactive blocks.</p>
