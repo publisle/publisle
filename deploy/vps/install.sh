@@ -85,7 +85,7 @@ runuser -u publisle -- env HOME=/var/lib/publisle-runtime XDG_RUNTIME_DIR="$RUNT
 
 echo "==> API files"
 install -d -o root -g root "$APP_DIR"
-for FILE in server.mjs limits.mjs queue.mjs images.mjs worker.mjs reap.mjs; do
+for FILE in server.mjs limits.mjs queue.mjs images.mjs worker.mjs reap.mjs budget.mjs; do
   install -o root -g root -m 0644 "$SCRIPT_DIR/$FILE" "$APP_DIR/$FILE"
 done
 install -m 0644 "$SCRIPT_DIR/publisle-api.service" /etc/systemd/system/publisle-api.service

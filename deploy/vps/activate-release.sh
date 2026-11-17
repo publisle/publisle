@@ -224,7 +224,7 @@ cp -a /etc/publisle-api.env "$BACKUP/env"
 if [[ -e /etc/publisle-deployed-release ]]; then cp -a /etc/publisle-deployed-release "$BACKUP/source"; fi
 if [[ -e /etc/publisle-native-pdf-verified.json ]]; then cp -a /etc/publisle-native-pdf-verified.json "$BACKUP/verification.json"; fi
 if [[ -e /etc/publisle-pdf-verified.json ]]; then cp -a /etc/publisle-pdf-verified.json "$BACKUP/verification-latex.json"; fi
-FILES=(server.mjs images.mjs limits.mjs queue.mjs reap.mjs worker.mjs)
+FILES=(server.mjs images.mjs limits.mjs queue.mjs reap.mjs worker.mjs budget.mjs)
 for file in "${FILES[@]}"; do [[ ! -e /opt/publisle-api/$file ]] || cp -a "/opt/publisle-api/$file" "$BACKUP/$file"; done
 function rollback() {
   trap - ERR HUP INT TERM
