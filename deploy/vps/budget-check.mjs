@@ -8,6 +8,7 @@ import { resolve, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { createApi } from "./server.mjs";
 import { TEMPLATES } from "./limits.mjs";
+import { thisHostBudget } from "./budget.mjs";
 
 const execute = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
@@ -116,8 +117,8 @@ if (
     const report = {
       image,
       passed: !samples.some((sample) => sample.failure),
-      aggregateCpu: 0.5,
-      aggregateMemoryMiB: 512,
+      aggregateCpu: Number(process.env.PDF_AGGREGATE_CPU),
+      aggregateMemoryMiB: Number(process.env.PDF_AGGREGATE_MEMORY_MIB),
       sampledPeakMiB: Math.round(peak / 1024 / 1024),
       beforeEvents,
       afterEvents: await readFile(`${group}/memory.events`, "utf8"),
@@ -194,15 +195,16 @@ if (
     const codes = await Promise.all([once(save, "close"), once(load, "close")]);
     if (codes.some(([code]) => code !== 0))
       throw new Error("QA image transfer failed");
+    const hostBudget = thisHostBudget();
     await execute("systemctl", [
       "--user",
       "set-property",
       "--runtime",
       slice,
-      "MemoryMax=512M",
+      `MemoryMax=${hostBudget.aggregateMemoryMiB}M`,
       "MemoryHigh=infinity",
       "MemorySwapMax=0",
-      "CPUQuota=50%",
+      `CPUQuota=${hostBudget.aggregateCpu * 100}%`,
     ]);
     const args = [
       "--user",
@@ -215,6 +217,10 @@ if (
       `--setenv=DOCKER_HOST=${qaEnv.DOCKER_HOST}`,
       `--setenv=PDF_CGROUP_PARENT=${slice}`,
       `--setenv=PDF_QA_ARTIFACTS=${artifactDirectory}`,
+      `--setenv=PDF_AGGREGATE_CPU=${hostBudget.aggregateCpu}`,
+      `--setenv=PDF_AGGREGATE_MEMORY_MIB=${hostBudget.aggregateMemoryMiB}`,
+      `--setenv=PDF_WORKER_CPUS=${hostBudget.workerCpus}`,
+      `--setenv=PDF_WORKER_MEMORY_MIB=${hostBudget.workerMemoryMiB}`,
       ...[
         "PDF_QA_IMAGE",
         "PDF_QA_BENCHMARK",

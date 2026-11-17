@@ -5,6 +5,7 @@
 - Let pdfLaTeX hyphenate the first word of a table cell, so a long dictionary
   word no longer paints over the next column.
 - Draw emoji on the fast engine from the pinned monochrome Noto Emoji font.
+- Accept a math face in the fast engine font manifest, and write PDF/UA structure arrays outside its object stream.
 
 ## 2026-11-03
 

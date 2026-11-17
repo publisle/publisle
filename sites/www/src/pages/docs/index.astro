@@ -13,6 +13,24 @@ const guides = bySection("guides");
 const standards = bySection("standards");
 
 const entryHref = (id: string) => `/docs/${id === "standards" ? "standards" : id}/`;
+const hosts = guides.find((entry) => entry.id === "guides/framework-hosts");
+const start = [
+  {
+    href: "/playground/",
+    title: "Playground",
+    description: "Edit a document and watch the compiled article update.",
+  },
+  {
+    href: "/docs/blocks/",
+    title: "Blocks",
+    description: "See each core block rendered beside the Markdown that produced it.",
+  },
+  {
+    href: hosts ? entryHref(hosts.id) : "/docs/guides/framework-hosts/",
+    title: hosts?.data.title ?? "Framework hosts",
+    description: hosts?.data.description ?? "Integrate Publisle with a web framework.",
+  },
+];
 ---
 
 <BaseLayout
@@ -31,6 +49,25 @@ const entryHref = (id: string) => `/docs/${id === "standards" ? "standards" : id
 
     <DocsSearch client:load />
 
+    <section aria-labelledby="start" class="mt-12">
+      <h2 id="start" class="font-display text-2xl font-semibold">Start here</h2>
+      <ul class="mt-4 grid gap-3 sm:grid-cols-3">
+        {
+          start.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="block h-full rounded-lg border border-line bg-surface p-4 transition hover:border-accent"
+              >
+                <span class="font-medium">{item.title}</span>
+                <span class="mt-1 block text-sm text-muted">{item.description}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
     <section aria-labelledby="guides" class="mt-12">
       <h2 id="guides" class="font-display text-2xl font-semibold">Guides</h2>
       <ul class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -43,7 +80,7 @@ const entryHref = (id: string) => `/docs/${id === "standards" ? "standards" : id
               >
                 <span class="font-medium">{entry.data.title}</span>
                 <span class="mt-1 block text-sm text-muted">
-                  /docs/{entry.id}
+                  {entry.data.description}
                 </span>
               </a>
             </li>
@@ -66,7 +103,7 @@ const entryHref = (id: string) => `/docs/${id === "standards" ? "standards" : id
               >
                 <span class="font-medium">{entry.data.title}</span>
                 <span class="mt-1 block text-sm text-muted">
-                  /docs/{entry.id === "standards" ? "standards" : entry.id}
+                  {entry.data.description}
                 </span>
               </a>
             </li>
