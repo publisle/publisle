@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendSegment,
   blockCategories,
   blockDescriptions,
   blockLabels,
   blockTypes,
   createPlaygroundRegistry,
   DocumentEditor,
+  inlineSegments,
   insertMathSnippet,
+  listItemEdits,
   MATH_PALETTE_TABS,
+  setSegmentText,
+  setSegmentUrl,
   tokenizeMath,
+  updateListItemText,
 } from "../src/index.ts";
 
 describe("math palette data", () => {
@@ -140,6 +146,47 @@ describe("DocumentEditor.duplicateBlock", () => {
   it("returns undefined for unknown ids", () => {
     const editor = new DocumentEditor();
     expect(editor.duplicateBlock("nope" as never)).toBeUndefined();
+  });
+
+  it("keeps rich list items until their visible text changes", () => {
+    const items = [
+      {
+        type: "listItem",
+        checked: true,
+        children: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", value: "Math stays TeX: " },
+              { type: "inlineMath", value: "E=mc^2" },
+            ],
+          },
+        ],
+      },
+    ];
+    const [row] = listItemEdits(items);
+    const same = updateListItemText(items, 0, row?.text ?? "");
+    expect(same[0]).toMatchObject({
+      checked: true,
+      children: items[0]?.children,
+    });
+    const changed = updateListItemText(items, 0, "plain");
+    expect(JSON.stringify(changed)).not.toContain("inlineMath");
+    expect(changed[0]).toMatchObject({ checked: true });
+  });
+
+  it("edits a link URL separately from its text", () => {
+    const nodes = appendSegment([], "link");
+    const segment = inlineSegments(nodes)[0];
+    expect(segment?.url).toBe("https://example.com");
+    const text = setSegmentText(nodes, segment?.index ?? 0, "Publisle");
+    const url = setSegmentUrl(
+      text,
+      segment?.index ?? 0,
+      "https://publisle.xyz/",
+    );
+    expect(url[0]).toMatchObject({ url: "https://publisle.xyz/" });
+    expect(inlineSegments(url)[0]?.value).toBe("Publisle");
   });
 
   it("works with host registries", () => {

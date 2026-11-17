@@ -23,6 +23,7 @@ import {
   trustedProxyCheck,
 } from "../server.mjs";
 import { workerArguments } from "../worker.mjs";
+import { workerBudget } from "../budget.mjs";
 
 test("native engines are advertised and accepted only for explicitly verified templates", () => {
   assert.throws(() => validateRequest({ markdown: "x", engine: "rust" }));
@@ -312,9 +313,9 @@ test("worker sandbox is immutable, bounded and has no network", async () => {
     "--network=none",
     "--read-only",
     "--cap-drop=ALL",
-    "--memory=448m",
-    "--memory-swap=448m",
-    "--cpus=0.5",
+    `--memory=${workerBudget().memoryMiB}m`,
+    `--memory-swap=${workerBudget().memoryMiB}m`,
+    `--cpus=${workerBudget().cpus}`,
   ])
     assert.ok(args.includes(flag));
   assert.throws(() => workerArguments("latest", "test", "/tmp/job", "compile"));

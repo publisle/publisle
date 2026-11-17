@@ -6,6 +6,7 @@ import "@publisle/adapter-core/document.css";
 import "@publisle/adapter-core/katex.css";
 import "../styles/site.css";
 import { ClientRouter } from "astro:transitions";
+import GitHubLink from "../components/GitHubLink.svelte";
 import ThemeToggle from "../components/ThemeToggle.svelte";
 import MobileNav from "../components/MobileNav.svelte";
 
@@ -106,7 +107,11 @@ const ldScripts = jsonLd ?? [];
         var blocks = document.querySelectorAll("pre");
         for (var index = 0; index < blocks.length; index += 1) {
           var pre = blocks[index];
-          if (pre.closest('[aria-label="Compiled preview"]')) continue;
+          if (
+            pre.closest('[aria-label="Compiled preview"]') ||
+            pre.closest(".publisle-preview")
+          )
+            continue;
           if (pre.querySelector(":scope > button.copy-code")) continue;
           var button = document.createElement("button");
           button.type = "button";
@@ -119,6 +124,8 @@ const ldScripts = jsonLd ?? [];
             var clone = host.cloneNode(true);
             var existing = clone.querySelector("button.copy-code");
             if (existing) existing.remove();
+            var language = clone.querySelector(".publisle-code-language");
+            if (language) language.remove();
             var text = clone.textContent || "";
             var announce = function (message) {
               if (status) status.textContent = message;
@@ -152,8 +159,21 @@ const ldScripts = jsonLd ?? [];
       });
     </script>
     <ClientRouter />
+    <script is:inline>
+      document.addEventListener("astro:before-preparation", function () {
+        var status = document.getElementById("route-status");
+        if (status) status.hidden = false;
+      });
+      document.addEventListener("astro:page-load", function () {
+        var status = document.getElementById("route-status");
+        if (status) status.hidden = true;
+      });
+    </script>
   </head>
   <body class="flex min-h-screen flex-col">
+    <p id="route-status" class="route-status" role="status" hidden>
+      Loading page…
+    </p>
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-bg"
@@ -209,13 +229,7 @@ const ldScripts = jsonLd ?? [];
                 ),
               )
             }
-            <a
-              href={github}
-              class="ml-1 rounded-md border border-line px-3 py-1.5 text-muted transition hover:border-accent hover:text-accent"
-              rel="me noopener"
-            >
-              GitHub
-            </a>
+            <GitHubLink client:load />
           </nav>
           <ThemeToggle client:load />
           <MobileNav client:load />
