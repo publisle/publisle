@@ -158,6 +158,7 @@ function tokenize(source: string, family: Family): CodeToken[] {
   if (family === "json") return scan(source, "json");
   if (family === "css") return css(source);
   if (family === "yaml") return yaml(source);
+  if (family === "plain") return [{ kind: "plain", text: source }];
   return scan(source, family);
 }
 

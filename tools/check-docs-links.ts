@@ -103,6 +103,21 @@ for (const file of files) {
         failures.push(`${relative(root, file)}: broken anchor #${anchor}`);
       continue;
     }
+    if (pathPart.startsWith("/")) {
+      const route = pathPart.replace(/\/$/, "");
+      const page = resolve(root, "sites/www/src/pages", `.${route}.astro`);
+      const index = resolve(
+        root,
+        "sites/www/src/pages",
+        `.${route}/index.astro`,
+      );
+      if (!existsSync(page) && !existsSync(index)) {
+        failures.push(
+          `${relative(root, file)}: broken link ${target} (no site page)`,
+        );
+      }
+      continue;
+    }
     const targetPath = resolve(base, pathPart);
     if (!existsSync(targetPath)) {
       failures.push(
