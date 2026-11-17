@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   coreBlockDefinitions,
+  code,
   diagram,
   embed,
   figure,
@@ -326,6 +327,69 @@ describe("createRenderPlan", () => {
     expect(html).toContain('src="flow-dark.svg"');
     expect(html).toContain('data-publisle-variant="dark"');
     expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("highlights common code languages and names the block", () => {
+    const prepared = prepare(
+      document({
+        blocks: [
+          code({
+            language: "ts",
+            value: 'const answer = "yes"; // done',
+          }),
+          code({ language: "py", value: "def answer():\n    return 1" }),
+          code({ language: "html", value: '<p class="note">Hi</p>' }),
+          code({ language: "made-up", value: "leave me plain" }),
+          code({ value: "no language" }),
+        ],
+      }),
+      { registry },
+    ).document;
+    if (!prepared) throw new Error("Expected prepared document.");
+    const html = compilePublication(prepared).html;
+    expect(html).toContain('class="publisle-code-language"');
+    expect(html).toContain("TypeScript");
+    expect(html).toContain('class="language-typescript"');
+    expect(html).toContain('class="tok-keyword"');
+    expect(html).toContain("const");
+    expect(html).toContain('class="tok-string"');
+    expect(html).toContain('"yes"');
+    expect(html).toContain("Python");
+    expect(html).toContain('class="language-python"');
+    expect(html).toContain("HTML");
+    expect(html).toContain('class="tok-tag"');
+    expect(html).toContain("made-up");
+    expect(html).toContain("leave me plain");
+    expect(html).not.toContain("language-made-up");
+    expect(html).toContain("<code>no language</code>");
+  });
+
+  it("shows a placeholder for an empty figure and a warning for an unsafe URL", () => {
+    const empty = prepare(
+      document({ blocks: [figure({ src: "", alt: "Plot" })] }),
+      { registry },
+    ).document;
+    if (!empty) throw new Error("Expected prepared document.");
+    const emptyHtml = compilePublication(empty).html;
+    expect(emptyHtml).toContain("Add an image URL");
+    expect(emptyHtml).not.toContain("unsafe");
+    const unsafe = prepare(
+      document({
+        blocks: [figure({ src: "javascript:alert(1)", alt: "Plot" })],
+      }),
+      { registry },
+    );
+    expect(unsafe.diagnostics.some((item) => item.code === "unsafe-url")).toBe(
+      false,
+    );
+    if (!unsafe.document) throw new Error("Expected prepared document.");
+    const unsafePublication = compilePublication(unsafe.document);
+    expect(unsafePublication.html).toContain(
+      "An unsafe figure URL was removed.",
+    );
+    expect(
+      unsafePublication.diagnostics.some((item) => item.code === "unsafe-url"),
+    ).toBe(true);
   });
 
   it("renders restricted embeds and diagram fallbacks", () => {
