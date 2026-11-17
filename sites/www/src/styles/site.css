@@ -698,6 +698,12 @@ main p a {
   padding-top: 1rem;
 }
 
+.publisle-document pre.publisle-code,
+.publisle-preview .publisle-document pre.publisle-code,
+[aria-label="Compiled preview"] .publisle-document pre.publisle-code {
+  padding-top: 2.5rem;
+}
+
 pre.source-sample {
   position: relative;
   padding: 2.5rem 1rem 1rem;

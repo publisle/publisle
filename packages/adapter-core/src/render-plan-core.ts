@@ -21,6 +21,7 @@ export function installMathRenderer(
   mathRenderer = renderer;
 }
 
+import { highlightCode } from "./highlight.ts";
 import type {
   AdapterCompilerOptions,
   IslandRendererReference,
@@ -365,18 +366,39 @@ function flow(
             flow(node["children"] as Flow[], diagnostics, block, references),
           ),
         ];
-      case "code":
+      case "code": {
+        const value = String(node["value"] ?? "");
+        const language =
+          typeof node["language"] === "string" ? node["language"] : undefined;
+        const highlighted = highlightCode(value, language);
+        const code = element(
+          "code",
+          highlighted.className ? { class: highlighted.className } : {},
+          highlighted.tokens.map((token) =>
+            token.kind === "plain"
+              ? text(token.text)
+              : element("span", { class: `tok-${token.kind}` }, [
+                  text(token.text),
+                ]),
+          ),
+        );
         return [
-          element("pre", {}, [
-            element(
-              "code",
-              typeof node["language"] === "string"
-                ? { class: `language-${node["language"]}` }
-                : {},
-              [text(String(node["value"] ?? ""))],
-            ),
-          ]),
+          element(
+            "pre",
+            highlighted.label ? { class: "publisle-code" } : {},
+            [
+              ...(highlighted.label
+                ? [
+                    element("span", { class: "publisle-code-language" }, [
+                      text(highlighted.label),
+                    ]),
+                  ]
+                : []),
+              code,
+            ],
+          ),
         ];
+      }
       case "divider":
         return [element("hr", {}, [])];
       case "rawHtml":

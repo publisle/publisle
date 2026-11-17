@@ -92,6 +92,17 @@
     return typeof value === "string" ? value : String(value);
   }
 
+  function selectOptions(spec: FieldSpec): readonly {
+    readonly value: string;
+    readonly label: string;
+  }[] {
+    const options = spec.options ?? [];
+    const current = plainValue(spec);
+    if (current && !options.some((option) => option.value === current))
+      return [{ value: current, label: current }, ...options];
+    return options;
+  }
+
   function applyPlain(spec: FieldSpec, value: string): void {
     onUpdate(block.id, setFieldValue(data, spec, value));
   }
@@ -307,7 +318,7 @@
               value={plainValue(spec)}
               oninput={(event) => applyPlain(spec, event.currentTarget.value)}
             >
-              {#each spec.options ?? [] as option (option.value)}
+              {#each selectOptions(spec) as option (option.value)}
                 <option value={option.value}>{option.label}</option>
               {/each}
             </select>

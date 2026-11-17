@@ -54,6 +54,27 @@ const VARIANTS = [
   { value: "error", label: "Error" },
 ];
 
+const CODE_LANGUAGES = [
+  { value: "", label: "Plain" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "jsx", label: "JSX" },
+  { value: "tsx", label: "TSX" },
+  { value: "python", label: "Python" },
+  { value: "json", label: "JSON" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "bash", label: "Bash" },
+  { value: "rust", label: "Rust" },
+  { value: "go", label: "Go" },
+  { value: "java", label: "Java" },
+  { value: "c", label: "C" },
+  { value: "cpp", label: "C++" },
+  { value: "sql", label: "SQL" },
+  { value: "yaml", label: "YAML" },
+  { value: "markdown", label: "Markdown" },
+];
+
 const omit = (
   data: Record<string, unknown>,
   key: string,
@@ -100,7 +121,13 @@ export function blockFields(
       ];
     case "publisle:code":
       return [
-        { kind: "text", key: "language", label: "Language", optional: true },
+        {
+          kind: "select",
+          key: "language",
+          label: "Language",
+          optional: true,
+          options: CODE_LANGUAGES,
+        },
         { kind: "textarea", key: "value", label: "Code", rows: 5 },
       ];
     case "publisle:math":

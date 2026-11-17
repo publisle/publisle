@@ -124,6 +124,8 @@ const ldScripts = jsonLd ?? [];
             var clone = host.cloneNode(true);
             var existing = clone.querySelector("button.copy-code");
             if (existing) existing.remove();
+            var language = clone.querySelector(".publisle-code-language");
+            if (language) language.remove();
             var text = clone.textContent || "";
             var announce = function (message) {
               if (status) status.textContent = message;
