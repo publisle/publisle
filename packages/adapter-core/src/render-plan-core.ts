@@ -740,13 +740,14 @@ function blockNodes(
     case "publisle:divider":
       return [element("hr", {}, [])];
     case "publisle:figure": {
-      const src = safeUrl(String(data["src"] ?? ""));
+      const rawSrc = String(data["src"] ?? "").trim();
+      const src = rawSrc ? safeUrl(rawSrc) : undefined;
       const original = data["original"] as Record<string, unknown> | undefined;
       const originalSrc =
         typeof original?.["src"] === "string"
           ? safeUrl(original["src"])
           : undefined;
-      if (!src)
+      if (rawSrc && !src)
         diagnostics.push({
           level: "warning",
           code: "unsafe-url",
@@ -783,14 +784,26 @@ function blockNodes(
             ...(themed ? { class: "publisle-figure-themed" } : {}),
           },
           [
-            element(
-              "img",
-              {
-                ...(src ? { src } : {}),
-                alt: String(data["alt"] ?? "Figure description missing."),
-              },
-              [],
-            ),
+            ...(src
+              ? [
+                  element(
+                    "img",
+                    {
+                      src,
+                      alt: String(data["alt"] ?? "Figure description missing."),
+                    },
+                    [],
+                  ),
+                ]
+              : [
+                  element("p", { class: "publisle-figure-placeholder" }, [
+                    text(
+                      rawSrc
+                        ? "An unsafe figure URL was removed."
+                        : "Add an image URL",
+                    ),
+                  ]),
+                ]),
             ...variants.map(([name, variantSrc]) =>
               // The base image carries the description; renditions are decorative.
               element(

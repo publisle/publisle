@@ -328,6 +328,34 @@ describe("createRenderPlan", () => {
     expect(html).toContain('aria-hidden="true"');
   });
 
+  it("shows a placeholder for an empty figure and a warning for an unsafe URL", () => {
+    const empty = prepare(
+      document({ blocks: [figure({ src: "", alt: "Plot" })] }),
+      { registry },
+    ).document;
+    if (!empty) throw new Error("Expected prepared document.");
+    const emptyHtml = compilePublication(empty).html;
+    expect(emptyHtml).toContain("Add an image URL");
+    expect(emptyHtml).not.toContain("unsafe");
+    const unsafe = prepare(
+      document({
+        blocks: [figure({ src: "javascript:alert(1)", alt: "Plot" })],
+      }),
+      { registry },
+    );
+    expect(unsafe.diagnostics.some((item) => item.code === "unsafe-url")).toBe(
+      false,
+    );
+    if (!unsafe.document) throw new Error("Expected prepared document.");
+    const unsafePublication = compilePublication(unsafe.document);
+    expect(unsafePublication.html).toContain(
+      "An unsafe figure URL was removed.",
+    );
+    expect(
+      unsafePublication.diagnostics.some((item) => item.code === "unsafe-url"),
+    ).toBe(true);
+  });
+
   it("renders restricted embeds and diagram fallbacks", () => {
     const prepared = prepare(
       document({

@@ -8,10 +8,21 @@
     block: Block;
     onUpdate: (id: Block["id"], data: unknown) => void;
     onSelect?: (id: Block["id"]) => void;
+    onRemove?: (id: Block["id"]) => void;
+    onMove?: (id: Block["id"], direction: "up" | "down") => void;
+    onDuplicate?: (id: Block["id"]) => void;
     selected?: boolean;
   }
 
-  let { block, onUpdate, onSelect, selected = false }: Props = $props();
+  let {
+    block,
+    onUpdate,
+    onSelect,
+    onRemove,
+    onMove,
+    onDuplicate,
+    selected = false,
+  }: Props = $props();
 
   const data = $derived(
     typeof block.data === "object" && block.data !== null
@@ -33,6 +44,16 @@
 >
   <header class="block-editor__header">
     <strong>Math</strong>
+    {#if onMove && onRemove}
+      <div class="block-editor__actions">
+        <button type="button" onclick={() => onMove(block.id, "up")} aria-label="Move block up">Up</button>
+        <button type="button" onclick={() => onMove(block.id, "down")} aria-label="Move block down">Down</button>
+        {#if onDuplicate}
+          <button type="button" onclick={() => onDuplicate(block.id)} aria-label="Duplicate block">Copy</button>
+        {/if}
+        <button type="button" onclick={() => onRemove(block.id)} aria-label="Remove block">Remove</button>
+      </div>
+    {/if}
   </header>
   <div class="block-editor__body">
     <MathEditor

@@ -103,6 +103,13 @@
   max-width: 100%;
 }
 
+.publisle-document .publisle-figure-placeholder {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  border: 1px dashed currentColor;
+  text-align: center;
+}
+
 .publisle-document .publisle-task-list-item {
   display: grid;
   grid-template-columns: 1em minmax(0, 1fr);
