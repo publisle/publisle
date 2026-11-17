@@ -10,7 +10,7 @@ Caddy forwards HTTPS to a Node 24 API on `127.0.0.1:8787`. The API admits one jo
 at a time, with at most two waiting requests and fifteen attempts per IP per
 ten minutes. Identical repeat requests answered from the PDF cache do not
 consume the attempt quota. The dedicated rootless runtime and API share `publisle-pdf.slice`, capped
-at **0.5 vCPU and 512 MiB total**, including all compiler containers. Swap is
+at the host's remaining CPUs and memory after a reserve of 1 vCPU and 1 GiB for the OS, Caddy, and nginx, including all compiler containers. `install.sh` writes that budget. Swap is
 forbidden. Existing VPS workloads stay outside this hierarchy.
 
 Each job validates editor data, obtains referenced public images, decodes images
@@ -18,7 +18,7 @@ in an isolated worker, then compiles with the existing research source generator
 and `latexmk` in a fresh worker. Separating decoding from TeX releases decoder
 memory before compilation. Workers have no network, capabilities, writable root
 filesystem, or runtime socket. Their scratch space is 128 MiB, process count 64,
-and memory limit 448 MiB; the aggregate 512-MiB ceiling still applies.
+and a memory limit of the slice minus about 64 MiB for the API; the aggregate ceiling still applies.
 
 Default budgets: 256 KiB JSON, 12 distinct images, 4 MiB per download, 16 MiB total
 input/converted images, eight megapixels per image, 16 MiB final PDF, 30 seconds
@@ -279,7 +279,7 @@ profile IDs, and `PDF_NATIVE_VERIFICATION_FILE` with its verification record.
 Without all three and a passing readiness check the API advertises only the
 existing engines. Do not reuse the legacy image's verification record.
 
-The record retains `image`, `passed`, `aggregateCpu: 0.5`,
+The record retains `image`, `passed`, `aggregateCpu`,
 `aggregateMemoryMiB: 512` and successful `samples` for each enabled profile
 (`template`, `engine: "rust"`, `pdfBytes`). It additionally requires
 `native.templates` entries with `id`, `contentParity`, `layoutChecksPassed`,

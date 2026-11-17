@@ -26,6 +26,7 @@ import {
 import { Admission } from "./queue.mjs";
 import { fetchImages } from "./images.mjs";
 import { runWorker } from "./worker.mjs";
+import { readInstalledBudget } from "./budget.mjs";
 
 const execute = promisify(execFile);
 
@@ -156,11 +157,13 @@ export async function checkReadiness(
         "utf8",
       ),
     );
+    const installed = readInstalledBudget();
     if (
+      !installed ||
       verification.image !== image ||
       verification.passed !== true ||
-      verification.aggregateCpu !== 0.5 ||
-      verification.aggregateMemoryMiB !== 512 ||
+      verification.aggregateCpu !== installed.aggregateCpu ||
+      verification.aggregateMemoryMiB !== installed.aggregateMemoryMiB ||
       (native &&
         native.templates.some(
           (id) =>
@@ -205,10 +208,10 @@ export async function checkReadiness(
       ).stdout,
     );
     return (
-      Number(memory.trim()) <= 512 * 1024 * 1024 &&
+      Number(memory.trim()) <= installed.aggregateMemoryMiB * 1024 * 1024 &&
       Number(swap.trim()) === 0 &&
       quota > 0 &&
-      quota / period <= 0.5 &&
+      quota / period <= installed.aggregateCpu + 1e-6 &&
       runtime === true &&
       info.CgroupVersion === "2" &&
       // Both rootless cgroup drivers keep containers inside the delegated
