@@ -3,7 +3,7 @@
  *
  * It runs as its own small process, started with the API's Node flags, after the
  * native gate has exited. Production has no 200 MiB validation harness inside the
- * 512 MiB slice, so neither may this gate: a LaTeX container shares the slice only
+ * PDF slice, so neither may this gate: a LaTeX container shares the slice only
  * with the API and the rootless Docker daemon.
  *
  * The API enables PDF_WORKER_IMAGE only when a report names that exact image ID
@@ -12,7 +12,7 @@
  * 30-sample latency gate applies to the native path only.
  *
  * Non-default engines are deliberately not gated. LuaLaTeX on ieee-journal sits at
- * the edge of the 512 MiB slice with the previously live image as well and passes
+ * the edge of that slice with the previously live image as well and passes
  * or fails from run to run, so gating it would make every deployment flaky. Such a
  * request fails with a clear resource-limit error instead of a release failure.
  */
@@ -23,6 +23,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { compileJob } from "./server.mjs";
 import { TEMPLATES, validateRequest } from "./limits.mjs";
+import { readInstalledBudget } from "./budget.mjs";
 const exec = promisify(execFile),
   root = join(import.meta.dirname, "../..");
 const [latexImage, stage] = process.argv.slice(2);
@@ -37,10 +38,12 @@ const cpu = (await readFile(group + "/cpu.max", "utf8"))
   .trim()
   .split(" ")
   .map(Number);
-assert.equal(cpu[0] / cpu[1], 0.5);
+const installed = readInstalledBudget();
+assert(installed, "Missing /etc/publisle-pdf-budget.json");
+assert.equal(cpu[0] / cpu[1], installed.aggregateCpu);
 assert.equal(
   Number(await readFile(group + "/memory.max", "utf8")),
-  512 * 1024 * 1024,
+  installed.aggregateMemoryMiB * 1024 * 1024,
 );
 assert.equal(Number(await readFile(group + "/memory.swap.max", "utf8")), 0);
 await mkdir(join(stage, "results"), { recursive: true });
@@ -49,8 +52,8 @@ const before = await readFile(group + "/memory.events", "utf8");
 const latexReport = {
   image: latexImage,
   passed: false,
-  aggregateCpu: 0.5,
-  aggregateMemoryMiB: 512,
+  aggregateCpu: installed.aggregateCpu,
+  aggregateMemoryMiB: installed.aggregateMemoryMiB,
   swapMiB: 0,
   samples: [],
 };

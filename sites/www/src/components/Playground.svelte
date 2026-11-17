@@ -20,6 +20,8 @@
     type PlaygroundExample,
   } from "../lib/playground-examples";
   import BlockPalette from "./BlockPalette.svelte";
+  import BlockInserter from "./BlockInserter.svelte";
+  import InsertGap from "./InsertGap.svelte";
 
   // The schematic island loads with the preview, not with the editor shell.
   const previewEnvironment = {
@@ -83,10 +85,7 @@ PDF export works out of the box: this sample already carries a title and author.
 
   let view = $state<"edit" | "preview">("edit");
   let viewportKnown = $state(false);
-  let wideScreen = $state(false);
-  const previewActive = $derived(
-    viewportKnown && (wideScreen || view === "preview"),
-  );
+  let draftReady = $state(false);
   let MathBlockEditor = $state<
     typeof import("@publisle/playground/MathBlockEditor.svelte").default | undefined
   >(undefined);
@@ -158,8 +157,9 @@ PDF export works out of the box: this sample already carries a title and author.
   let selectedId = $state<string | undefined>(undefined);
   let paletteOpen = $state(false);
   let previewEl = $state<HTMLDivElement | null>(null);
+  let editorSection = $state<HTMLElement | null>(null);
+  let previewSection = $state<HTMLElement | null>(null);
 
-  let draftReady = $state(false);
   let storageAvailable = $state(true);
   let sourcePending = false;
   let sourceFlight: Promise<void> | undefined;
@@ -167,13 +167,6 @@ PDF export works out of the box: this sample already carries a title and author.
   const DRAFT_KEY = "publisle-draft-v1";
 
   onMount(() => {
-    const media = window.matchMedia("(min-width: 1024px)");
-    const syncViewport = (): void => {
-      wideScreen = media.matches;
-    };
-    syncViewport();
-    viewportKnown = true;
-    media.addEventListener("change", syncViewport);
     const unsubscribe = editor.subscribe(() => { version += 1; });
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -211,8 +204,9 @@ PDF export works out of the box: this sample already carries a title and author.
       url.searchParams.delete("example");
       history.replaceState(history.state, "", url);
     }
+    viewportKnown = true;
     draftReady = true;
-    return () => { media.removeEventListener("change", syncViewport); unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
+    return () => { unsubscribe(); clearTimeout(sourceTimer); pdfAbort?.abort(); if (pdfDownloadUrl) URL.revokeObjectURL(pdfDownloadUrl); };
   });
 
   $effect(() => {
@@ -236,6 +230,7 @@ PDF export works out of the box: this sample already carries a title and author.
 
   function scheduleSource(): void {
     sourcePending = true;
+    previewBusy = true;
     clearTimeout(sourceTimer);
     sourceTimer = setTimeout(flushSource, 200);
   }
@@ -309,6 +304,24 @@ PDF export works out of the box: this sample already carries a title and author.
       })),
   }));
 
+  // Common blocks offered by the always-visible inserter and the in-between
+  // controls; the palette keeps the full list ("More blocks").
+  const COMMON_TYPES = [
+    "publisle:paragraph",
+    "publisle:heading",
+    "publisle:list",
+    "publisle:quote",
+    "publisle:callout",
+    "publisle:code",
+    "publisle:math",
+    "publisle:figure",
+    "publisle:table",
+  ];
+  const commonItems = COMMON_TYPES.filter((type) => types.includes(type)).map(
+    (type) => ({ type, label: labels[type] ?? type }),
+  );
+
+  const previewActive = $derived(viewportKnown && draftReady);
   let previewBusy = $state(true);
   let compiled = $state<{
     html: string;
@@ -321,14 +334,9 @@ PDF export works out of the box: this sample already carries a title and author.
       | undefined;
   }>({ html: "", warnings: 0, error: "", manifest: undefined });
   $effect(() => {
-    if (!viewportKnown) return;
-    if (!previewActive) {
-      previewBusy = false;
-      return;
-    }
+    if (!previewActive) return;
     void version;
     previewBusy = true;
-    compiled = { html: "", warnings: 0, error: "", manifest: undefined };
     if (markdownPending > 0) return;
     const source = editor.document;
     let active = true;
@@ -371,22 +379,60 @@ PDF export works out of the box: this sample already carries a title and author.
   });
 
   async function setView(next: "edit" | "preview"): Promise<void> {
-    if (next === "preview") previewBusy = true;
     view = next;
     await flushSource();
+    const target = next === "preview" ? previewSection : editorSection;
+    target?.scrollIntoView({ block: "start" });
   }
 
-  async function addBlock(type: string): Promise<void> {
+  /** Insert after `afterId`, else after the selected block, else at the end. */
+  async function addBlock(type: string, afterId?: string): Promise<void> {
     await changeMode("blocks");
-    const selectedIndex = blocks.findIndex(
-      (block) => block.id === selectedId,
-    );
-    const insertAt =
-      selectedIndex >= 0 ? selectedIndex + 1 : blocks.length;
+    const anchor = afterId ?? selectedId;
+    const anchorIndex = blocks.findIndex((block) => block.id === anchor);
+    const insertAt = anchorIndex >= 0 ? anchorIndex + 1 : blocks.length;
     editor.addBlock(type, insertAt);
-    selectedId = editor.document.blocks[insertAt]?.id;
+    const insertedId = editor.document.blocks[insertAt]?.id;
+    selectedId = insertedId;
     view = "edit";
     notice = undefined;
+    if (insertedId) void revealBlock(insertedId);
+  }
+
+  // Scroll the new block into view (clear of the pinned inserter) and focus
+  // its first text field. Retries briefly: the math editor loads lazily.
+  async function revealBlock(id: string): Promise<void> {
+    let scrolled = false;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await tick();
+      if (selectedId !== id) return;
+      const wrapper = editorSection?.querySelector<HTMLElement>(
+        `[data-block-id="${CSS.escape(id)}"]`,
+      );
+      if (wrapper && editorSection && !scrolled) {
+        scrolled = true;
+        // Keep the block's top just under the pinned inserter when it is not
+        // already fully visible in the scrolling editor.
+        const area = editorSection.getBoundingClientRect();
+        const box = wrapper.getBoundingClientRect();
+        const offset = box.top - area.top - 12;
+        const visibleHeight = editorSection.clientHeight - 16;
+        if (offset < 0 || offset + box.height > visibleHeight)
+          editorSection.scrollTop += offset;
+      }
+      if (wrapper?.querySelector(".block-editor")) {
+        const field = [
+          ...wrapper.querySelectorAll<HTMLElement>(
+            'textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])',
+          ),
+        ].find((candidate) => candidate.checkVisibility());
+        field?.focus({ preventScroll: true });
+        // Page-level scroll (stacked phone layout) without moving the editor.
+        (field ?? wrapper).scrollIntoView({ block: "nearest" });
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
   }
 
   function duplicate(id: string): void {
@@ -494,12 +540,23 @@ PDF export works out of the box: this sample already carries a title and author.
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<div class="flex h-full min-h-[70vh] flex-col gap-4">
+<div class="flex h-full min-h-[70vh] flex-col gap-6">
+  {#if !draftReady}
+    <div
+      class="grid min-w-0 gap-4 lg:grid-cols-2"
+      aria-busy="true"
+      aria-label="Loading playground"
+    >
+      <div class="h-[70vh] animate-pulse rounded-xl border border-line bg-surface"></div>
+      <div class="h-[40vh] animate-pulse rounded-xl border border-line bg-surface lg:h-[70vh]"></div>
+      <p class="sr-only" role="status">Loading playground…</p>
+    </div>
+  {:else}
   <div
-    class="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-bg px-2 py-2"
+    class="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-xl border border-line bg-bg px-2 py-2"
   >
     <div
-      class="flex overflow-hidden rounded-lg border border-line lg:hidden"
+      class="order-1 flex overflow-hidden rounded-lg border border-line lg:hidden"
       role="tablist"
       aria-label="Playground view"
     >
@@ -507,7 +564,7 @@ PDF export works out of the box: this sample already carries a title and author.
         type="button"
         role="tab"
         aria-selected={view === "edit"}
-        class="px-4 py-1.5 text-sm {view === 'edit'
+        class="min-h-11 px-4 text-sm {view === 'edit'
           ? 'bg-surface font-medium text-accent'
           : 'text-muted hover:text-ink'}"
         onclick={() => setView("edit")}
@@ -518,7 +575,7 @@ PDF export works out of the box: this sample already carries a title and author.
         type="button"
         role="tab"
         aria-selected={view === "preview"}
-        class="px-4 py-1.5 text-sm {view === 'preview'
+        class="min-h-11 px-4 text-sm {view === 'preview'
           ? 'bg-surface font-medium text-accent'
           : 'text-muted hover:text-ink'}"
         onclick={() => setView("preview")}
@@ -527,52 +584,44 @@ PDF export works out of the box: this sample already carries a title and author.
       </button>
     </div>
 
-    <div class={view === "preview" ? "hidden lg:contents" : "contents"}>
-      <div
-        class="flex overflow-hidden rounded-lg border border-line"
-        role="tablist"
-        aria-label="Editor mode"
-      >
-        {#each ["blocks", "markdown", "json"] as entry (entry)}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === entry}
-            class="px-3 py-1.5 text-sm capitalize {mode === entry
-              ? 'bg-surface font-medium text-accent'
-              : 'text-muted hover:text-ink'}"
-            onclick={() => changeMode(entry as "blocks" | "markdown" | "json")}
-          >
-            {entry}
-          </button>
-        {/each}
-      </div>
-      {#if mode === "blocks"}
-        <button
-          type="button"
-          class="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-bg hover:opacity-90"
-          onclick={() => (paletteOpen = true)}
-          title="Add block (Ctrl+K)"
-        >
-          + Add block
-        </button>
-      {:else}
-        <span class="text-xs text-muted">Updates as you type</span>
-      {/if}
-    </div>
-
     <button
       type="button"
-      class="rounded-md border border-line px-3 py-1.5 text-sm text-muted hover:border-accent hover:text-accent"
+      class="order-2 ml-auto min-h-11 rounded-md border border-line px-4 text-sm text-muted hover:border-accent hover:text-accent lg:order-2 lg:ml-0 lg:min-h-9 lg:px-3"
       onclick={reset}
     >
       Reset
     </button>
 
-    <span class="ml-auto flex items-center gap-2 text-xs text-muted">
+    <!-- Phones: force the mode tabs onto their own calm second row. -->
+    <div class="order-3 basis-full lg:hidden" aria-hidden="true"></div>
+
+    <div
+      class="order-4 flex overflow-hidden rounded-lg border border-line lg:order-1"
+      role="tablist"
+      aria-label="Editor mode"
+    >
+      {#each ["blocks", "markdown", "json"] as entry (entry)}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === entry}
+          class="min-h-11 px-3 text-sm capitalize lg:min-h-9 {mode === entry
+            ? 'bg-surface font-medium text-accent'
+            : 'text-muted hover:text-ink'}"
+          onclick={() => changeMode(entry as "blocks" | "markdown" | "json")}
+        >
+          {entry}
+        </button>
+      {/each}
+    </div>
+    {#if mode !== "blocks"}
+      <span class="order-5 hidden text-xs text-muted sm:inline lg:order-3">Updates as you type</span>
+    {/if}
+
+    <span class="order-6 ml-auto flex flex-wrap items-center gap-2 text-xs text-muted lg:order-4">
       {#if PDF_ENABLED}
-        <button type="button" class="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-bg disabled:opacity-50" aria-busy={pdfBusy} disabled={pdfBusy || !health?.services?.pdf || !pdfTemplates.length} onclick={() => void exportPdf()}>{pdfBusy ? `Compiling… ${pdfElapsed}s` : "Export PDF"}</button>
-        {#if pdfBusy}<button type="button" class="rounded-md border border-line px-3 py-1.5" onclick={() => pdfAbort?.abort()}>Cancel PDF</button>{/if}
+        <button type="button" class="min-h-11 rounded-md bg-accent px-3 text-sm font-medium text-bg disabled:opacity-50 lg:min-h-9" aria-busy={pdfBusy} disabled={pdfBusy || !health?.services?.pdf || !pdfTemplates.length} onclick={() => void exportPdf()}>{pdfBusy ? `Compiling… ${pdfElapsed}s` : "Export PDF"}</button>
+        {#if pdfBusy}<button type="button" class="min-h-11 rounded-md border border-line px-3 lg:min-h-9" onclick={() => pdfAbort?.abort()}>Cancel PDF</button>{/if}
         {#if health}
           <span class="rounded-full border border-line px-2 py-0.5">
             API {health.status}
@@ -588,7 +637,8 @@ PDF export works out of the box: this sample already carries a title and author.
           class="rounded-full border border-line px-2 py-0.5"
           title="Set PUBLIC_API_URL + PUBLIC_PDF_ENABLED when the PDF service ships"
         >
-          PDF export coming soon
+          <span class="sm:hidden" aria-hidden="true">PDF soon</span>
+          <span class="sr-only sm:not-sr-only">PDF export coming soon</span>
         </span>
       {/if}
     </span>
@@ -643,82 +693,103 @@ PDF export works out of the box: this sample already carries a title and author.
     </section>
   </details>
 
-  <div class="grid min-w-0 gap-4 lg:grid-cols-2">
+  {#if mode === "blocks"}
+    <BlockInserter
+      items={commonItems}
+      empty={blocks.length === 0}
+      onInsert={(type) => void addBlock(type)}
+      onMore={() => (paletteOpen = true)}
+    />
+  {/if}
+
+  <div class="grid min-w-0 gap-6 lg:grid-cols-2">
     <section
       aria-label="Document editor"
-      class="min-w-0 max-h-[75vh] space-y-4 overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 {view === 'preview' ? 'hidden lg:block' : ''}"
+      bind:this={editorSection}
+      class="min-w-0 max-h-[70svh] overflow-y-auto rounded-xl border border-line bg-surface lg:max-h-[74vh]"
     >
-      <h2 class="font-display text-lg font-semibold">Editor</h2>
       {#if mode === "blocks"}
-        {#if blocks.length === 0}
-          <p class="text-sm text-muted">
-            No blocks. Press <kbd
-              class="rounded border border-line bg-raised px-1 font-mono text-xs"
-            >Ctrl+K</kbd
-            > or use “Add block”.
-          </p>
-        {:else}
-          {#each blocks as block (block.id)}
-            {#if block.type === "publisle:math"}
-              {#if MathBlockEditor}
-                <MathBlockEditor
+        <div class="flex flex-col gap-4 p-4 sm:p-5">
+          {#each blocks as block, index (block.id)}
+            <div data-block-id={block.id} class="flex flex-col gap-2">
+              {#if block.type === "publisle:math"}
+                {#if MathBlockEditor}
+                  <MathBlockEditor
+                    {block}
+                    selected={selectedId === block.id}
+                    onSelect={(id) => (selectedId = id)}
+                    onUpdate={(id, data) => editor.updateBlock(id, data)}
+                    onRemove={(id) => {
+                      editor.removeBlock(id);
+                      if (selectedId === id) selectedId = undefined;
+                    }}
+                    onMove={(id, direction) => editor.moveBlock(id, direction)}
+                    onDuplicate={(id) => duplicate(id)}
+                  />
+                {:else}
+                  <p class="text-sm text-muted">Loading math editor…</p>
+                {/if}
+              {:else}
+                <BlockEditor
                   {block}
                   selected={selectedId === block.id}
                   onSelect={(id) => (selectedId = id)}
+                  onRemove={(id) => {
+                    editor.removeBlock(id);
+                    if (selectedId === id) selectedId = undefined;
+                  }}
+                  onMove={(id, direction) => editor.moveBlock(id, direction)}
+                  onDuplicate={(id) => duplicate(id)}
                   onUpdate={(id, data) => editor.updateBlock(id, data)}
                 />
-              {:else}
-                <p class="text-sm text-muted">Loading math editor…</p>
               {/if}
-            {:else}
-              <BlockEditor
-                {block}
-                selected={selectedId === block.id}
-                onSelect={(id) => (selectedId = id)}
-                onRemove={(id) => {
-                  editor.removeBlock(id);
-                  if (selectedId === id) selectedId = undefined;
-                }}
-                onMove={(id, direction) => editor.moveBlock(id, direction)}
-                onDuplicate={(id) => duplicate(id)}
-                onUpdate={(id, data) => editor.updateBlock(id, data)}
+              <InsertGap
+                items={commonItems}
+                position={index + 1}
+                onInsert={(type) => void addBlock(type, block.id)}
               />
-            {/if}
+            </div>
           {/each}
-        {/if}
+        </div>
       {:else if mode === "markdown"}
-        <textarea
-          class="min-h-[60vh] w-full rounded-lg border border-line bg-input p-3 font-mono text-xs"
-          aria-label="Markdown source"
-          spellcheck="false"
-          bind:value={markdownText}
-          oninput={scheduleSource}
-        ></textarea>
+        <div class="p-3 sm:p-4">
+          <textarea
+            class="min-h-[60vh] w-full rounded-lg border border-line bg-input p-3 font-mono text-xs"
+            aria-label="Markdown source"
+            spellcheck="false"
+            bind:value={markdownText}
+            oninput={scheduleSource}
+          ></textarea>
+        </div>
       {:else}
-        <textarea
-          class="min-h-[60vh] w-full rounded-lg border border-line bg-input p-3 font-mono text-xs"
-          aria-label="Document JSON"
-          spellcheck="false"
-          bind:value={jsonText}
-          oninput={scheduleSource}
-        ></textarea>
+        <div class="p-3 sm:p-4">
+          <textarea
+            class="min-h-[60vh] w-full rounded-lg border border-line bg-input p-3 font-mono text-xs"
+            aria-label="Document JSON"
+            spellcheck="false"
+            bind:value={jsonText}
+            oninput={scheduleSource}
+          ></textarea>
+        </div>
       {/if}
     </section>
     <section
       aria-label="Compiled preview"
       aria-busy={previewBusy}
-      class="publication-wide min-w-0 max-h-[75vh] overflow-y-auto rounded-xl border border-line bg-surface p-3 sm:p-4 {view === 'edit' ? 'hidden lg:block' : ''}"
+      bind:this={previewSection}
+      class="publication-wide min-h-[24rem] min-w-0 max-h-[75svh] overflow-y-auto rounded-xl border border-line bg-surface p-4 sm:p-6 lg:max-h-[74vh]"
     >
       <h2 class="mb-2 font-display text-lg font-semibold">Live preview</h2>
       <p class="mb-3 text-xs text-muted">Your compiled article, with working interactive blocks.</p>
       {#if previewBusy}
-        <p role="status" class="text-sm text-muted">Updating preview…</p>
-      {:else if compiled.error}
+        <p role="status" class="mb-3 text-sm text-muted">Updating preview…</p>
+      {/if}
+      {#if compiled.error}
         <p class="whitespace-pre-wrap rounded-lg border border-danger bg-surface px-3 py-2 font-mono text-xs">
           {compiled.error}
         </p>
-      {:else}
-        <div class="publisle-preview" bind:this={previewEl}>
+      {:else if compiled.html}
+        <div class="publisle-preview" class:opacity-70={previewBusy} bind:this={previewEl}>
           {#if previewTitle}<h2 class="mb-4 font-display text-2xl font-semibold">{previewTitle}</h2>{/if}
           {@html compiled.html}
         </div>
@@ -729,12 +800,13 @@ PDF export works out of the box: this sample already carries a title and author.
   <p class="text-xs text-muted" role="status">{storageAvailable ? "Draft saved automatically on this device." : "Browser storage unavailable. Copy your source to keep it."}</p>
   <p class="hidden text-xs text-muted sm:block">
     <kbd class="rounded border border-line bg-raised px-1 font-mono">Ctrl+K</kbd>
-    add block ·
+    more blocks ·
     <kbd class="rounded border border-line bg-raised px-1 font-mono">Ctrl+↵</kbd>
     toggle preview ·
     <kbd class="rounded border border-line bg-raised px-1 font-mono">Esc</kbd>
     back to editor
   </p>
+  {/if}
 </div>
 
 <BlockPalette
