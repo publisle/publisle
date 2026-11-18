@@ -22,6 +22,7 @@
     "@publisle/blocks-technical": "workspace:*",
     "@publisle/core": "workspace:*",
     "@publisle/markdown": "workspace:*",
+    "@publisle/mcp": "workspace:*",
     "@publisle/playground": "workspace:*",
     "@publisle/research": "workspace:*",
     "@publisle/schema": "workspace:*",

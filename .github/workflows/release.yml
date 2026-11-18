@@ -52,6 +52,7 @@ jobs:
               - 'packages/cli-research/**'
             pdf:
               - 'packages/pdf-service/**'
+              - 'packages/mcp/**'
               - 'packages/research/**'
               - 'deploy/vps/**'
             native:

@@ -7,6 +7,7 @@
     { href: "/docs/", label: "Docs" },
     { href: "/examples/", label: "Examples" },
     { href: "/playground/", label: "Playground" },
+    { href: "/mcp/", label: "MCP" },
   ];
   let open = $state(false);
   let path = $state("/");

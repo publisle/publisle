@@ -233,6 +233,14 @@ export async function checkReadiness(
 const CACHE_PDF_TTL_MS = Number(process.env.PDF_CACHE_TTL_MS ?? 3_600_000);
 const CACHE_TOTAL_BYTES = 256 * 1024 * 1024;
 
+// MCP calls are cheap, but the API is a single 48 MB event loop shared with PDF
+// jobs. A per-IP window and a global in-flight cap keep it responsive.
+const MCP_LIMITS = Object.freeze({
+  windowMs: 60_000,
+  callsPerWindow: 90,
+  inFlight: 6,
+});
+
 function cacheKey(request, image) {
   return createHash("sha256")
     .update(JSON.stringify({ request, image }))
@@ -502,6 +510,202 @@ export function createApi(options = {}) {
     });
     response.end(body);
   };
+
+  // --- Model Context Protocol (POST /mcp) -------------------------------------
+  // A stateless JSON-RPC endpoint. The handler lives in mcp.mjs and is loaded on
+  // first use, so a missing or broken bundle only disables /mcp: health and PDF
+  // compilation never depend on it.
+  let mcpModule;
+  const loadMcp = () => {
+    mcpModule ??= (options.loadMcp ?? (() => import("./mcp.mjs")))().catch(
+      (error) => {
+        mcpModule = undefined;
+        throw error;
+      },
+    );
+    return mcpModule;
+  };
+  const mcpError = (response, status, code, message) =>
+    json(response, status, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code, message },
+    });
+  const mcpWindow = new Map();
+  let mcpWindowStart = Date.now();
+  let mcpInFlight = 0;
+  const mcpLimit = options.mcpLimit ?? MCP_LIMITS;
+  const mcpAllowed = (ip) => {
+    const now = Date.now();
+    if (now - mcpWindowStart >= mcpLimit.windowMs) {
+      mcpWindow.clear();
+      mcpWindowStart = now;
+    }
+    const used = (mcpWindow.get(ip) ?? 0) + 1;
+    mcpWindow.set(ip, used);
+    return used <= mcpLimit.callsPerWindow;
+  };
+  const mcpHost = (ip, signal) => ({
+    templates: () =>
+      availableTemplates(options.nativeImage ? options.nativeTemplates : [])
+        .filter((template) => template.engines.includes("rust"))
+        .map((template) => ({ ...template, engines: ["rust"] })),
+    compilePdf: async (job, jobSignal) => {
+      if (!ready || !options.nativeImage)
+        throw new ServiceError(
+          "unavailable",
+          "PDF compilation is unavailable.",
+          503,
+        );
+      const input = validateRequest(
+        {
+          ...(job.document === undefined
+            ? { markdown: job.markdown }
+            : { document: job.document }),
+          template: job.template,
+          engine: "rust",
+          data: job.data,
+        },
+        options.nativeTemplates,
+      );
+      const image = options.nativeImage;
+      if (options.pdfCacheDirectory) {
+        const cached = await readCachedPdf(
+          options.pdfCacheDirectory,
+          cacheKey(input, image),
+        );
+        if (cached)
+          return {
+            pdf: new Uint8Array(cached.pdf),
+            diagnostics: [
+              ...cached.diagnostics,
+              {
+                code: "pdf-cache-hit",
+                message:
+                  "An identical document was compiled recently; the cached PDF was served.",
+              },
+            ],
+          };
+      }
+      const release = await admission.acquire(ip, jobSignal ?? signal);
+      try {
+        const result = await (
+          options.compile ??
+          ((request, abort) => compileJob(request, abort, options))
+        )(input, jobSignal ?? signal);
+        if (options.pdfCacheDirectory)
+          await storeCachedPdf(
+            options.pdfCacheDirectory,
+            cacheKey(input, image),
+            result,
+          );
+        return { pdf: result.pdf, diagnostics: result.diagnostics ?? [] };
+      } finally {
+        release();
+      }
+    },
+  });
+  const handleMcp = async (request, response) => {
+    const controller = new AbortController();
+    controllers.add(controller);
+    response.on("close", () => controller.abort());
+    const started = performance.now();
+    let counted = false;
+    try {
+      let mcp;
+      try {
+        mcp = await loadMcp();
+      } catch {
+        mcpError(response, 503, -32000, "MCP is unavailable.");
+        request.resume();
+        return;
+      }
+      const version = request.headers["mcp-protocol-version"];
+      if (
+        version !== undefined &&
+        !mcp.PROTOCOL_VERSIONS.includes(String(version))
+      ) {
+        mcpError(response, 400, -32600, "Unsupported MCP-Protocol-Version.");
+        request.resume();
+        return;
+      }
+      if (
+        request.headers["content-type"]?.split(";")[0]?.trim() !==
+        "application/json"
+      ) {
+        mcpError(response, 415, -32600, "Expected application/json.");
+        request.resume();
+        return;
+      }
+      if (
+        Number(request.headers["content-length"] ?? 0) > LIMITS.requestBytes
+      ) {
+        mcpError(response, 413, -32600, "Request exceeds 256 KiB.");
+        request.resume();
+        return;
+      }
+      const ip = clientAddress(
+        request.socket.remoteAddress,
+        request.headers["x-forwarded-for"],
+        isTrustedProxy,
+      );
+      if (!mcpAllowed(ip) || mcpInFlight >= mcpLimit.inFlight) {
+        response.setHeader("retry-after", "60");
+        mcpError(response, 429, -32000, "Too many MCP requests.");
+        request.resume();
+        return;
+      }
+      mcpInFlight += 1;
+      counted = true;
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of request) {
+        size += chunk.length;
+        if (size > LIMITS.requestBytes) {
+          mcpError(response, 413, -32600, "Request exceeds 256 KiB.");
+          return;
+        }
+        chunks.push(chunk);
+      }
+      let text;
+      try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(
+          Buffer.concat(chunks),
+        );
+      } catch {
+        mcpError(response, 400, -32700, "Parse error.");
+        return;
+      }
+      const outcome = await mcp.handleRpcText(text, {
+        host: mcpHost(ip, controller.signal),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      console.log(
+        JSON.stringify({
+          event: "mcp-request",
+          outcome: outcome.kind,
+          durationMs: Math.round(performance.now() - started),
+        }),
+      );
+      if (outcome.kind === "none") {
+        response.writeHead(202, { "content-length": 0 });
+        response.end();
+      } else
+        json(
+          response,
+          200,
+          outcome.kind === "single" ? outcome.response : outcome.responses,
+        );
+    } catch {
+      if (!controller.signal.aborted)
+        mcpError(response, 500, -32603, "Internal error.");
+    } finally {
+      if (counted) mcpInFlight -= 1;
+      controllers.delete(controller);
+    }
+  };
+
   const server = createServer(
     { requestTimeout: 45000, headersTimeout: 10000, maxHeaderSize: 8192 },
     (request, response) => {
@@ -527,7 +731,8 @@ export function createApi(options = {}) {
       if (request.method === "OPTIONS") {
         response.writeHead(204, {
           "access-control-allow-methods": "GET, POST, OPTIONS",
-          "access-control-allow-headers": "Content-Type, Accept",
+          "access-control-allow-headers":
+            "Content-Type, Accept, Mcp-Protocol-Version, Mcp-Session-Id",
           "access-control-max-age": "600",
         });
         response.end();
@@ -560,8 +765,18 @@ export function createApi(options = {}) {
             "GET /health",
             "GET /pdf/capabilities",
             "POST /pdf/compile",
+            "POST /mcp",
           ],
         });
+        return;
+      }
+      if (pathname === "/mcp") {
+        if (request.method !== "POST") {
+          response.setHeader("allow", "POST, OPTIONS");
+          mcpError(response, 405, -32600, "Use POST for MCP requests.");
+          return;
+        }
+        void handleMcp(request, response);
         return;
       }
       if (request.method !== "POST" || pathname !== "/pdf/compile") {

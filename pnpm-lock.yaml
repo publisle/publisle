@@ -961,6 +961,28 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
 
+  packages/mcp:
+    dependencies:
+      '@publisle/adapter-core':
+        specifier: workspace:*
+        version: link:../adapter-core
+      '@publisle/core':
+        specifier: workspace:*
+        version: link:../core
+      '@publisle/markdown':
+        specifier: workspace:*
+        version: link:../markdown
+      '@publisle/playground':
+        specifier: workspace:*
+        version: link:../playground
+      '@publisle/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
   packages/pdf-service:
     dependencies:
       '@publisle/blocks-core':
@@ -1148,6 +1170,9 @@ importers:
       '@publisle/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@publisle/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@publisle/playground':
         specifier: workspace:*
         version: link:../../packages/playground

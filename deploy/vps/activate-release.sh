@@ -224,7 +224,7 @@ cp -a /etc/publisle-api.env "$BACKUP/env"
 if [[ -e /etc/publisle-deployed-release ]]; then cp -a /etc/publisle-deployed-release "$BACKUP/source"; fi
 if [[ -e /etc/publisle-native-pdf-verified.json ]]; then cp -a /etc/publisle-native-pdf-verified.json "$BACKUP/verification.json"; fi
 if [[ -e /etc/publisle-pdf-verified.json ]]; then cp -a /etc/publisle-pdf-verified.json "$BACKUP/verification-latex.json"; fi
-FILES=(server.mjs images.mjs limits.mjs queue.mjs reap.mjs worker.mjs budget.mjs)
+FILES=(server.mjs images.mjs limits.mjs queue.mjs reap.mjs worker.mjs budget.mjs mcp.mjs)
 for file in "${FILES[@]}"; do [[ ! -e /opt/publisle-api/$file ]] || cp -a "/opt/publisle-api/$file" "$BACKUP/$file"; done
 function rollback() {
   trap - ERR HUP INT TERM
@@ -238,7 +238,12 @@ function rollback() {
 }
 trap rollback ERR
 trap 'rollback; exit 1' HUP INT TERM
-for file in "${FILES[@]}"; do install -o root -g root -m 0644 "$STAGE/source/deploy/vps/$file" "/opt/publisle-api/$file"; done
+for file in "${FILES[@]}"; do
+  # mcp.mjs is a build output appended by release.sh. The API answers 503 on /mcp
+  # without it, so its absence must not fail a PDF deployment.
+  [[ $file != mcp.mjs || -f "$STAGE/source/deploy/vps/$file" ]] || { rm -f "/opt/publisle-api/$file"; continue; }
+  install -o root -g root -m 0644 "$STAGE/source/deploy/vps/$file" "/opt/publisle-api/$file"
+done
 # BEGIN install_report
 # Read an unprivileged output through an opened descriptor without following
 # links; root must not copy arbitrary host files selected by a staging process.

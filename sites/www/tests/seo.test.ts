@@ -116,6 +116,7 @@ describe("site SEO metadata", () => {
       "/docs/",
       "/examples/",
       "/playground/",
+      "/mcp/",
       ...docSources().map((doc) => `/docs/${doc.id}/`),
     ]);
     for (const route of routes) {

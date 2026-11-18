@@ -10,6 +10,7 @@ on:
       - "packages/playground/**"
       - "packages/adapter-astro/**"
       - "packages/adapter-core/**"
+      - "packages/mcp/**"
       - ".github/workflows/site.yml"
       - "pnpm-lock.yaml"
   pull_request:
@@ -19,6 +20,7 @@ on:
       - "packages/playground/**"
       - "packages/adapter-astro/**"
       - "packages/adapter-core/**"
+      - "packages/mcp/**"
       - ".github/workflows/site.yml"
       - "vitest.acceptance.config.ts"
       - "pnpm-lock.yaml"

@@ -715,3 +715,113 @@ it("adds blocks without a dialog from the pinned inserter and between blocks on 
     await page.close();
   }
 });
+
+it("runs an MCP session on the /mcp page offline and against a mocked live endpoint", async () => {
+  if (!browser) throw new Error("Browser not started");
+  const { handleRpc } = await import("@publisle/mcp");
+  const errors: string[] = [];
+  const pdf = new TextEncoder().encode("%PDF-1.7\nmcp acceptance");
+
+  // Offline: the hosted endpoint is unreachable, so the page runs the handler itself.
+  const offline = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
+  offline.on("pageerror", (error) => errors.push(error.message));
+  await offline.route("https://api.publisle.xyz/**", (route) => route.abort());
+  try {
+    await offline.goto(`${baseUrl}/mcp/`);
+    await offline.waitForSelector("astro-island[ssr]", { state: "detached" });
+    await expect
+      .poll(() =>
+        offline.locator("[data-mcp-mode]").getAttribute("data-mcp-mode"),
+      )
+      .toBe("browser");
+    await offline.getByRole("button", { name: "Run the session" }).click();
+    await expect
+      .poll(
+        () => offline.getByRole("listitem").filter({ hasText: "HTTP" }).count(),
+        { timeout: 20000 },
+      )
+      .toBe(10);
+    const preview = offline.getByRole("region", { name: "Compiled preview" });
+    expect(await preview.innerText()).toContain(
+      "Notes on the Fourier transform",
+    );
+    expect(await preview.locator(".katex").count()).toBeGreaterThan(0);
+    expect(
+      await offline
+        .getByText("PDF export needs the hosted endpoint")
+        .isVisible(),
+    ).toBe(true);
+    await offline.locator("details").first().locator("summary").click();
+    expect(
+      await offline.locator("details[open] pre").first().innerText(),
+    ).toContain('"method": "initialize"');
+  } finally {
+    await offline.close();
+  }
+
+  // Live: a mocked endpoint backed by the real handler, with a PDF compiler stub.
+  const live = await browser.newPage({ viewport: { width: 390, height: 800 } });
+  live.on("pageerror", (error) => errors.push(error.message));
+  const calls: string[] = [];
+  await live.route("https://api.publisle.xyz/mcp", async (route) => {
+    const cors = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "Content-Type, Accept",
+    };
+    if (route.request().method() === "OPTIONS")
+      return route.fulfill({ status: 204, headers: cors });
+    const message = JSON.parse(route.request().postData() ?? "{}") as {
+      method?: string;
+    };
+    calls.push(message.method ?? "");
+    const outcome = await handleRpc(message, {
+      host: {
+        templates: () => [],
+        compilePdf: () => Promise.resolve({ pdf, diagnostics: [] }),
+      },
+    });
+    if (outcome.kind === "none")
+      return route.fulfill({ status: 202, headers: cors, body: "" });
+    return route.fulfill({
+      status: 200,
+      headers: { ...cors, "content-type": "application/json" },
+      body: JSON.stringify(
+        outcome.kind === "single" ? outcome.response : outcome.responses,
+      ),
+    });
+  });
+  try {
+    await live.goto(`${baseUrl}/mcp/`);
+    await live.waitForSelector("astro-island[ssr]", { state: "detached" });
+    await expect
+      .poll(() => live.locator("[data-mcp-mode]").getAttribute("data-mcp-mode"))
+      .toBe("hosted");
+    await live.getByLabel("Title").fill("Tides and moons");
+    await live.getByRole("button", { name: "Run the session" }).click();
+    await expect
+      .poll(
+        () => live.getByRole("listitem").filter({ hasText: "HTTP" }).count(),
+        { timeout: 20000 },
+      )
+      .toBe(10);
+    expect(calls).toContain("tools/call");
+    expect(
+      await live.getByRole("region", { name: "Compiled preview" }).innerText(),
+    ).toContain("Tides and moons");
+    const frame = live.getByTitle("Exported PDF");
+    expect(await frame.getAttribute("src")).toMatch(/^blob:/u);
+    expect(
+      await live
+        .getByRole("link", { name: "Download the PDF" })
+        .getAttribute("download"),
+    ).toBe("publisle-mcp.pdf");
+    expect(
+      await live.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(390);
+  } finally {
+    await live.close();
+  }
+  expect(errors).toEqual([]);
+});

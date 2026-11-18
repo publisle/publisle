@@ -22,7 +22,8 @@ export default defineConfig({
         "img-src 'self' data: blob:",
         // KaTeX ships some faces as data: URLs inside its stylesheet.
         "font-src 'self' data:",
-        "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com",
+        // blob: shows the PDF the MCP demo receives from compile_pdf.
+        "frame-src 'self' blob: https://www.youtube-nocookie.com https://player.vimeo.com",
         "worker-src 'self' blob:",
         "manifest-src 'self'",
       ],

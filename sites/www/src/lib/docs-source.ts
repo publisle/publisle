@@ -48,6 +48,8 @@ const descriptions: Readonly<Record<string, string>> = {
     "Integrate Publisle with Next.js, Astro, Vue, and Python while retaining control of routes, metadata, and implementation loaders.",
   "guides/journal-export":
     "Export research manuscripts to journal templates, LaTeX, and PDF with local compiler setup and explicit accessibility checks.",
+  "guides/mcp":
+    "Connect AI assistants to Publisle through a stateless MCP endpoint that edits documents, previews HTML, and exports PDF with the Rust compiler.",
   "guides/meaning":
     "Declare block meaning, traversal, and readable fallbacks without duplicating prose or embedding executable behavior.",
   "guides/performance-comparison":

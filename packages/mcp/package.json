@@ -1,0 +1,26 @@
+{
+  "name": "@publisle/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stateless Model Context Protocol handler for Publisle documents.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "node build.ts",
+    "test": "vitest run --config ../../vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@publisle/adapter-core": "workspace:*",
+    "@publisle/core": "workspace:*",
+    "@publisle/markdown": "workspace:*",
+    "@publisle/playground": "workspace:*",
+    "@publisle/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

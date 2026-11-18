@@ -10,7 +10,7 @@ export const prerender = true;
 
 /** Every indexable route path, with trailing slashes. */
 export function sitemapRoutes(): readonly string[] {
-  const routes = ["/", "/docs/", "/examples/", "/playground/"];
+  const routes = ["/", "/docs/", "/examples/", "/playground/", "/mcp/"];
   for (const doc of docSources()) routes.push(`/docs/${doc.id}/`);
   return routes;
 }

@@ -19,6 +19,7 @@ sources and PDF/JATS export.
 | Guide                                                        | Use it for                                                                  |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
 | [Framework hosts](guides/framework-hosts.md)                 | React, Svelte, Next.js, Astro and Vue integration                           |
+| [MCP server](guides/mcp.md)                                  | Let AI assistants draft, edit, preview and export documents                 |
 | [Contracts](guides/contracts.md)                             | Exported schemas, sealed contracts and offline validation                   |
 | [Meaning](guides/meaning.md)                                 | Inspecting declarations without executing plugins                           |
 | [Exchange](guides/exchange.md)                               | Immutable pins, archival Markdown and offline asset packages                |

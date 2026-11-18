@@ -96,3 +96,28 @@ assert(
 console.log(
   "Public default, native, tab, code-line and wide-table compilations passed.",
 );
+
+// MCP is optional and loads lazily, so a fault here must never roll back PDF
+// export. Report it instead of failing the release.
+try {
+  const response = await fetch(`${base}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  const body = await response.json();
+  if (
+    !response.ok ||
+    !Array.isArray(body.result?.tools) ||
+    !body.result.tools.length
+  )
+    throw new Error(`HTTP ${response.status}`);
+  console.log(`MCP lists ${body.result.tools.length} tools.`);
+} catch (error) {
+  console.log(`::warning::MCP endpoint check failed: ${error.message}`);
+}

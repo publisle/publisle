@@ -63,6 +63,12 @@ docker run --rm --entrypoint sh "$LATEX_ID" -c 'grep -q placeins /app/worker.mjs
 }
 docker save "$LATEX_TAG" | gzip -1 > "$STAGE/latex-image.tar.gz"
 git archive --format=tar --prefix=source/ "$GITHUB_SHA" > "$STAGE/source.tar"
+# The MCP handler is a bundle built from this commit. It is appended before the
+# digest below, so the host verifies it together with the rest of the source.
+pnpm --filter @publisle/mcp build
+tar --append --file="$STAGE/source.tar" --owner=0 --group=0 --mode=0644 \
+  --transform='s,^packages/mcp/dist/mcp\.mjs$,source/deploy/vps/mcp.mjs,' \
+  packages/mcp/dist/mcp.mjs
 # Record one digest over exactly the bytes that are about to be uploaded. The
 # server fetches this commit status itself and refuses a bundle that differs, so a
 # stolen SSH key cannot make it activate an archive the release job never built.
