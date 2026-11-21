@@ -853,6 +853,9 @@ export function createApi(options = {}) {
         return;
       }
       pdfInFlight += 1;
+      const responseDone = finished(response, { cleanup: true }).catch(
+        () => {},
+      );
       const controller = new AbortController();
       controllers.add(controller);
       response.on("close", () => controller.abort());
@@ -1002,6 +1005,7 @@ export function createApi(options = {}) {
         } finally {
           request.resume();
           release?.();
+          await responseDone;
           pdfInFlight -= 1;
           controllers.delete(controller);
         }
