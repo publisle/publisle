@@ -8,6 +8,7 @@
     <a href="https://github.com/publisle/publisle/actions/workflows/release.yml"><img src="https://github.com/publisle/publisle/actions/workflows/release.yml/badge.svg" alt="Release validation status" /></a>
     <img src="https://img.shields.io/badge/status-beta-9B3214" alt="beta" />
     <img src="https://img.shields.io/badge/node-24%2B-1A1513" alt="Node 24+" />
+    <a href="https://glama.ai/mcp/connectors/xyz.publisle.api/publisle-mcp"><img src="https://glama.ai/mcp/connectors/xyz.publisle.api/publisle-mcp/badges/score.svg" alt="Publisle MCP MCP connector – tool definition quality and endpoint health on Glama" /></a>
   </p>
 </div>
 
