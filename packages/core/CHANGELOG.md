@@ -1,5 +1,13 @@
 # @publisle/core
 
+## 0.1.5
+
+### Patch Changes
+
+- cc53b8b: Reuse validated traversal declarations during document preparation to speed up validation and rendering of large documents.
+- Updated dependencies [cc53b8b]
+  - @publisle/schema@0.1.3
+
 ## 0.1.4
 
 ### Patch Changes
