@@ -170,6 +170,12 @@ test("POST /mcp serves the protocol and rejects bad transport usage", async () =
     });
     assert.equal(deniedPdf.status, 403);
     assert.equal((await deniedPdf.json()).code, "origin-denied");
+    const deniedMalformedPath = await fetch(`${base}//[`, {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    });
+    assert.equal(deniedMalformedPath.status, 403);
+    assert.equal((await deniedMalformedPath.json()).code, "origin-denied");
 
     const preflight = await fetch(`${base}/mcp`, {
       method: "OPTIONS",

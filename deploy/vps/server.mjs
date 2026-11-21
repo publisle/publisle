@@ -723,7 +723,10 @@ export function createApi(options = {}) {
     (request, response) => {
       response.setHeader("x-content-type-options", "nosniff");
       response.setHeader("cache-control", "no-store");
-      const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+      const pathname = URL.parse(
+        request.url ?? "/",
+        "http://localhost",
+      )?.pathname;
       const origin = request.headers.origin;
       if (origin && !allowedOrigins.has(origin)) {
         if (pathname === "/mcp")
