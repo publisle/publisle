@@ -1,0 +1,94 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Privacy Policy · Publisle"
+  description="Learn how Publisle handles browser drafts, website visits, and information you send to the hosted MCP and PDF services."
+  path="/privacy/"
+>
+  <article class="publisle-document mx-auto w-[70ch] space-y-8 py-10">
+    <header class="space-y-3">
+      <h1 class="font-display font-bold">Privacy Policy</h1>
+      <p class="text-sm text-muted">
+        Effective <time datetime="2026-11-21">November 21, 2026</time>
+      </p>
+      <p>
+        The Publisle maintainers operate publisle.xyz and its hosted MCP and PDF services.
+        This policy explains what information those services use and how to contact us.
+      </p>
+    </header>
+
+    <section aria-labelledby="browser-data" class="space-y-3">
+      <h2 id="browser-data" class="font-display font-semibold">Data in your browser</h2>
+      <p>
+        The playground runs editing and preview in your browser and uses local storage to
+        save your draft on that device. The site also saves your theme preference in local
+        storage. To remove these, clear the site data for publisle.xyz in your browser settings.
+      </p>
+    </section>
+
+    <section aria-labelledby="hosted-services" class="space-y-3">
+      <h2 id="hosted-services" class="font-display font-semibold">Hosted MCP and PDF</h2>
+      <p>
+        The hosted API at api.publisle.xyz runs on OVHcloud. When you use hosted MCP, the
+        API receives the tool arguments, including any document or text your client sends.
+        The API processes each MCP request independently. The demo can also run MCP tools
+        in your browser.
+      </p>
+      <p>
+        Hosted PDF export sends your document content, metadata such as author names,
+        and export options to the API so it can return a PDF. The service may request
+        public images referenced in the document from the servers that host them.
+      </p>
+    </section>
+
+    <section aria-labelledby="retention" class="space-y-3">
+      <h2 id="retention" class="font-display font-semibold">Request logs and retention</h2>
+      <p>
+        The API uses IP addresses to enforce request and compilation limits. The
+        application logs request timings and outcomes to help troubleshoot the service.
+        Hosting and proxy logs may include IP addresses and basic request information,
+        such as the time, path, and response status. Log retention depends on the hosting
+        and logging settings and on operational needs.
+      </p>
+      <p>
+        PDF jobs use temporary working files that the service cleans up when the job ends.
+        When PDF caching is enabled, the service keeps generated PDFs and diagnostics so
+        it can answer identical requests faster. By default, a cached result can be reused
+        for up to one hour. Cached files can remain on disk until storage eviction or
+        maintenance removes them.
+      </p>
+    </section>
+
+    <section aria-labelledby="third-parties" class="space-y-3">
+      <h2 id="third-parties" class="font-display font-semibold">Third-party services</h2>
+      <p>
+        GitHub Pages hosts the website and logs visitor IP addresses for security.
+        Your browser also contacts GitHub to display the repository’s star count.
+        See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub’s privacy statement</a>.
+      </p>
+      <p>
+        Where a page displays a YouTube or Vimeo embed, the player can contact that
+        provider. See <a href="https://policies.google.com/privacy?hl=en">Google’s privacy policy</a>
+        for YouTube and <a href="https://vimeo.com/legal/privacy/policy">Vimeo’s privacy policy</a>.
+        If you connect an assistant or another MCP client, its own privacy practices
+        apply to the information it handles.
+      </p>
+    </section>
+
+    <section aria-labelledby="privacy-contact" class="space-y-3">
+      <h2 id="privacy-contact" class="font-display font-semibold">Your choices and privacy requests</h2>
+      <p>
+        Depending on the law that applies to you, you may have the right to access,
+        correct, or delete personal information, restrict or object to its use, or
+        complain to a data protection authority.
+      </p>
+      <p>
+        For privacy questions or requests, email the maintainers at
+        <a href="mailto:coder64bit@gmail.com">coder64bit@gmail.com</a>. We use the
+        information you send to respond and handle your request.
+      </p>
+    </section>
+  </article>
+</BaseLayout>
