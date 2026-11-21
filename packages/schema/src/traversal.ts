@@ -149,6 +149,22 @@ export function traverseDeclared(
   declaration: TraversalDeclaration,
 ): readonly TraversalVisit[] {
   validateTraversal(declaration);
+  return evaluateTraversal(value, declaration);
+}
+
+/** Validate and own a declaration once for a series of independent evaluations. */
+export function compileTraversal(
+  declaration: TraversalDeclaration,
+): (value: unknown) => readonly TraversalVisit[] {
+  validateTraversal(declaration);
+  const snapshot = structuredClone(declaration);
+  return (value) => evaluateTraversal(value, snapshot);
+}
+
+function evaluateTraversal(
+  value: unknown,
+  declaration: TraversalDeclaration,
+): readonly TraversalVisit[] {
   canonicalizeJson(value);
   const output: TraversalVisit[] = [];
   let steps = 0;

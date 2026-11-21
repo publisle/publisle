@@ -16,6 +16,7 @@ import {
   DocumentEditor,
 } from "@publisle/playground/core";
 import {
+  canonicalizeJson,
   document as buildDocument,
   parseDocument,
   type BlockId,
@@ -134,6 +135,50 @@ function loadDocument(args: JsonObject, key = "document"): Document {
       reason: describeFailure(error),
     });
   }
+}
+
+const maxRequestBytes = 256 * 1024;
+// Reserve room for the larger of the validate and render_html request envelopes.
+const followUpBytes =
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: { name: "render_html", arguments: { document: null } },
+  }).length - "null".length;
+
+function checkImportedDocument(document: Document): Document {
+  let canonical: string;
+  try {
+    canonical = canonicalizeJson(document);
+  } catch (error) {
+    throw new ToolError("The imported document does not validate.", {
+      diagnostics: [
+        {
+          level: "error",
+          code: "document-migration-failed",
+          message: describeFailure(error),
+        },
+      ],
+    });
+  }
+  if (
+    new TextEncoder().encode(canonical).byteLength + followUpBytes >
+    maxRequestBytes
+  )
+    throw new ToolError(
+      "The imported document exceeds the MCP request limit.",
+      {
+        diagnostics: [
+          {
+            level: "error",
+            code: "request-limit",
+            message: "The document cannot fit in a 256 KiB MCP request.",
+          },
+        ],
+      },
+    );
+  return document;
 }
 
 function blockIdFrom(editor: DocumentEditor, args: JsonObject): BlockId {
@@ -279,9 +324,7 @@ export const TOOLS: readonly ToolDefinition[] = [
             JSON.stringify(
               buildDocument({
                 blocks: [],
-                ...(metadata === undefined
-                  ? {}
-                  : { metadata: metadata }),
+                ...(metadata === undefined ? {} : { metadata: metadata }),
               }),
             ),
           ),
@@ -450,7 +493,9 @@ export const TOOLS: readonly ToolDefinition[] = [
         throw new ToolError("The Markdown could not be imported.", {
           diagnostics: diagnosticsOf(imported.diagnostics),
         });
-      const next = parseDocument(JSON.parse(JSON.stringify(imported.document)));
+      const next = checkImportedDocument(
+        loadDocument({ document: JSON.stringify(imported.document) }),
+      );
       return ok({
         document: next,
         diagnostics: diagnosticsOf(imported.diagnostics),
@@ -492,7 +537,9 @@ export const TOOLS: readonly ToolDefinition[] = [
     bounded: true,
     run: (args) =>
       ok({
-        document: loadDocument({ document: requireString(args, "source") }),
+        document: checkImportedDocument(
+          loadDocument({ source: requireString(args, "source") }, "source"),
+        ),
       }),
   },
   {
@@ -529,8 +576,7 @@ export const TOOLS: readonly ToolDefinition[] = [
     inputSchema: schema({ document: documentProperty }, ["document"]),
     annotations: READ_ONLY,
     bounded: true,
-    run: (args) =>
-      ok({ references: getDocumentReferences(prepared(args)) }),
+    run: (args) => ok({ references: getDocumentReferences(prepared(args)) }),
   },
   {
     name: "render_html",

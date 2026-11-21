@@ -40,7 +40,7 @@ The main risks, and how the design contains them:
 | Server state leaking between users                     | There is none. The server has no sessions and never reads files or the network, except for PDF images. |
 
 Out of scope: sessions, SSE streaming, server-initiated messages and OAuth. The
-endpoint is public and has the same limits as `/pdf/compile`.
+endpoint is public. PDF exports through MCP also use the PDF service's quota.
 
 ## Architecture
 
@@ -105,12 +105,16 @@ The server also offers the block catalog and a sample document as resources, and
 
 ## Limits
 
-| Limit                | Value                                                               |
-| -------------------- | ------------------------------------------------------------------- |
-| Request body         | 256 KiB                                                             |
-| Concurrent MCP calls | A small fixed cap; extra calls get a retryable error                |
-| Per-call deadline    | A few seconds for editing tools; the PDF deadline for `compile_pdf` |
-| PDF compilations     | 15 attempts per IP per 10 minutes; cache hits are free              |
+| Limit                | Value                                                                 |
+| -------------------- | --------------------------------------------------------------------- |
+| Request body         | 256 KiB                                                               |
+| MCP request rate     | 90 requests per client IP in any 60-second window                     |
+| Concurrent MCP calls | Six in-flight requests across the API                                 |
+| Tool time budget     | Five seconds for editing tools and the PDF deadline for `compile_pdf` |
+| PDF compilations     | 15 attempts per IP per 10 minutes, with cached PDFs exempt            |
+
+The API returns HTTP 429 with `Retry-After: 60` when an MCP request exceeds
+either admission limit. Cache hits still count toward MCP admission.
 
 ## Run it locally
 

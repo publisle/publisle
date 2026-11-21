@@ -4,6 +4,7 @@ import {
   document,
   parseDocument,
   RICH_TRAVERSAL_RULES,
+  compileTraversal,
   traverseDeclared,
   resolvePointer,
   TraversalError,
@@ -284,6 +285,18 @@ describe("bounded declared traversal", () => {
       traverseDeclared({}, { root: { properties: { "*": {} } } }),
     ).toThrow();
     expect(() => traverseDeclared({}, { root: { ref: "absent" } })).toThrow();
+  });
+
+  it("evaluates a compiled traversal against independent payloads", () => {
+    const rule: TraversalDeclaration = {
+      root: { properties: { text: { emit: { kind: "node" } } } },
+    };
+    const evaluate = compileTraversal(rule);
+    const first = { text: "first" };
+    expect(evaluate(first)).toEqual(traverseDeclared(first, rule));
+    expect(() => evaluate({})).toThrow(TraversalError);
+    const second = { text: "second" };
+    expect(evaluate(second)).toEqual(traverseDeclared(second, rule));
   });
   it("includes declarative metadata in registry/cache identity without version bumps", () => {
     const first = createRegistry([nested]);
