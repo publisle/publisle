@@ -103,6 +103,9 @@ describe("site SEO metadata", () => {
       '<link rel="manifest" href="/manifest.webmanifest" />',
     );
     expect(layout).toContain('<link rel="sitemap" href="/sitemap.xml" />');
+    expect(layout).toMatch(
+      /<footer\b[\s\S]*?href="\/privacy\/"[\s\S]*?<\/footer>/u,
+    );
     expect(layout).not.toContain("sitemap-index");
     expect(readFileSync(join(site, "public/robots.txt"), "utf8")).toContain(
       "Sitemap: https://publisle.xyz/sitemap.xml",
@@ -117,6 +120,7 @@ describe("site SEO metadata", () => {
       "/examples/",
       "/playground/",
       "/mcp/",
+      "/privacy/",
       ...docSources().map((doc) => `/docs/${doc.id}/`),
     ]);
     for (const route of routes) {
