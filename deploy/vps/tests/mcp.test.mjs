@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { LIMITS } from "../limits.mjs";
 import { createApi } from "../server.mjs";
@@ -36,11 +37,12 @@ async function start(options = {}) {
   api.server.listen(0, "127.0.0.1");
   await once(api.server, "listening");
   const base = `http://127.0.0.1:${api.server.address().port}`;
-  const post = (body, headers = {}) =>
+  const post = (body, headers = {}, signal) =>
     fetch(`${base}/mcp`, {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: typeof body === "string" ? body : JSON.stringify(body),
+      signal,
     });
   const rpc = async (method, params, id = 1) =>
     (await post({ jsonrpc: "2.0", id, method, params })).json();
@@ -138,26 +140,42 @@ test("POST /mcp serves the protocol and rejects bad transport usage", async () =
       (await post("{}", { "content-type": "text/plain" })).status,
       415,
     );
-    assert.equal(
-      (
-        await post({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "ping",
-          pad: "x".repeat(LIMITS.requestBytes),
-        })
-      ).status,
+    const oversizeMessage = "Request exceeds 256 KiB.";
+    const paddedPing = JSON.stringify({ ...ping, pad: "" });
+    const boundary = paddedPing.replace(
+      '""',
+      JSON.stringify("x".repeat(LIMITS.requestBytes - paddedPing.length)),
+    );
+    assert.equal(Buffer.byteLength(boundary), LIMITS.requestBytes);
+    assert.equal((await post(boundary)).status, 200);
+    await assertMcpError(
+      await post(boundary + " "),
       413,
+      -32600,
+      oversizeMessage,
     );
-    assert.equal(
-      (
-        await post(
-          { jsonrpc: "2.0", id: 1, method: "ping" },
-          { origin: "https://evil.example" },
-        )
-      ).status,
-      403,
-    );
+    const chunked = await fetch(`${base}/mcp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: Readable.from([boundary, " "]),
+      duplex: "half",
+    });
+    await assertMcpError(chunked, 413, -32600, oversizeMessage);
+    const denied = await post(ping, { origin: "https://evil.example" });
+    assert.equal(denied.headers.has("access-control-allow-origin"), false);
+    await assertMcpError(denied, 403, -32600, "Origin is not allowed.");
+    const deniedPdf = await fetch(`${base}/pdf/compile`, {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    });
+    assert.equal(deniedPdf.status, 403);
+    assert.equal((await deniedPdf.json()).code, "origin-denied");
+    const deniedMalformedPath = await fetch(`${base}//[`, {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    });
+    assert.equal(deniedMalformedPath.status, 403);
+    assert.equal((await deniedMalformedPath.json()).code, "origin-denied");
 
     const preflight = await fetch(`${base}/mcp`, {
       method: "OPTIONS",
@@ -246,17 +264,43 @@ test("compile_pdf reports unavailable service as a tool error", async () => {
   }
 });
 
-test("MCP calls are limited per client and never block the PDF routes", async () => {
-  const { api, base, post } = await start({
-    mcpLimit: { windowMs: 60_000, callsPerWindow: 2, inFlight: 6 },
+const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+
+async function assertMcpError(response, status, code, message) {
+  assert.equal(response.status, status);
+  assert.deepEqual(await response.json(), {
+    jsonrpc: "2.0",
+    id: null,
+    error: { code, message },
+  });
+}
+
+async function assertMcpLimited(response) {
+  assert.equal(response.headers.get("retry-after"), "60");
+  await assertMcpError(response, 429, -32000, "Too many MCP requests.");
+}
+
+test("the production MCP quota rolls across windows and keys by the trusted client", async () => {
+  let now = 0;
+  const { api, base, post } = await start({ mcpNow: () => now });
+  const headers = (index) => ({
+    "x-forwarded-for": `192.0.2.${index + 1}, 203.0.113.10`,
   });
   try {
-    const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
-    assert.equal((await post(ping)).status, 200);
-    assert.equal((await post(ping)).status, 200);
-    const limited = await post(ping);
-    assert.equal(limited.status, 429);
-    assert.ok(limited.headers.get("retry-after"));
+    now = 59_999;
+    for (let index = 0; index < 90; index++) {
+      const response = await post(ping, headers(index));
+      assert.equal(response.status, 200);
+      await response.json();
+    }
+    now = 60_000;
+    await assertMcpLimited(await post(ping, headers(90)));
+    assert.equal(
+      (await post(ping, { "x-forwarded-for": "203.0.113.11" })).status,
+      200,
+    );
+    now = 119_999;
+    assert.equal((await post(ping, headers(91))).status, 200);
     const compiled = await fetch(`${base}/pdf/compile`, {
       method: "POST",
       headers: {
@@ -272,6 +316,64 @@ test("MCP calls are limited per client and never block the PDF routes", async ()
     api.shutdown();
   }
 });
+
+test(
+  "the production cap covers bundle startup and recovers after a disconnect",
+  { timeout: 10_000 },
+  async () => {
+    const loading = Promise.withResolvers();
+    const sixArrived = Promise.withResolvers();
+    const sixExecuting = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    const disconnected = Promise.withResolvers();
+    const { api, post } = await start({ loadMcp: () => loading.promise });
+    let seen = 0;
+    let executing = 0;
+    api.server.on("request", () => {
+      if (++seen === 6) sixArrived.resolve();
+    });
+    const abort = new AbortController();
+    const clients = Array.from({ length: 6 }, (_, id) =>
+      post({ ...ping, id }, {}, id === 0 ? abort.signal : undefined).catch(
+        (error) => error,
+      ),
+    );
+    const mcp = {
+      async handleRpcText(text, { signal }) {
+        const { id } = JSON.parse(text);
+        if (id < 6) {
+          if (++executing === 6) sixExecuting.resolve();
+          if (id === 0) {
+            await once(signal, "abort");
+            disconnected.resolve();
+          } else await release.promise;
+        }
+        return { kind: "single", response: { jsonrpc: "2.0", id, result: {} } };
+      },
+    };
+    try {
+      await sixArrived.promise;
+      await assertMcpLimited(await post({ ...ping, id: 6 }));
+      loading.resolve(mcp);
+      await sixExecuting.promise;
+      await assertMcpLimited(await post({ ...ping, id: 7 }));
+      abort.abort();
+      assert.equal((await clients[0]).name, "AbortError");
+      await disconnected.promise;
+      assert.equal((await post({ ...ping, id: 8 })).status, 200);
+      release.resolve();
+      for (const response of await Promise.all(clients.slice(1))) {
+        assert.equal(response.status, 200);
+        await response.json();
+      }
+    } finally {
+      abort.abort();
+      loading.resolve(mcp);
+      release.resolve();
+      api.shutdown();
+    }
+  },
+);
 
 test("a missing or broken MCP bundle only disables /mcp", async () => {
   let attempts = 0;
@@ -329,7 +431,7 @@ test("every tool runs inside the API's production heap and Node flags", () => {
       remove_block: { document: big, blockId: first },
       move_block: { document: big, blockId: first, direction: "down" },
       duplicate_block: { document: big, blockId: first },
-      import_markdown: { markdown: "# Title\\n\\n" + "Some text with $x^2$.\\n\\n".repeat(2000) },
+      import_markdown: { markdown: "# Title\\n\\n" + "Some text with $x^2$.\\n\\n".repeat(1000) },
       export_markdown: { document: big },
       import_json: { source: JSON.stringify(big) },
       validate: { document: big }, outline: { document: big }, references: { document: big },

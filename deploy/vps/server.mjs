@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+import { finished } from "node:stream/promises";
 import {
   LIMITS,
   TEMPLATES,
@@ -240,6 +241,7 @@ const MCP_LIMITS = Object.freeze({
   callsPerWindow: 90,
   inFlight: 6,
 });
+const MCP_MAX_CLIENTS = 4096;
 
 function cacheKey(request, image) {
   return createHash("sha256")
@@ -531,19 +533,29 @@ export function createApi(options = {}) {
       id: null,
       error: { code, message },
     });
-  const mcpWindow = new Map();
-  let mcpWindowStart = Date.now();
+  const mcpClients = new Map();
   let mcpInFlight = 0;
   const mcpLimit = options.mcpLimit ?? MCP_LIMITS;
+  const mcpNow = options.mcpNow ?? (() => performance.now());
   const mcpAllowed = (ip) => {
-    const now = Date.now();
-    if (now - mcpWindowStart >= mcpLimit.windowMs) {
-      mcpWindow.clear();
-      mcpWindowStart = now;
+    const now = mcpNow();
+    const cutoff = now - mcpLimit.windowMs;
+    let calls = mcpClients.get(ip);
+    if (calls === undefined) {
+      if (mcpClients.size >= MCP_MAX_CLIENTS) {
+        for (const [client, recent] of mcpClients)
+          if (recent.at(-1) <= cutoff) mcpClients.delete(client);
+        if (mcpClients.size >= MCP_MAX_CLIENTS) return false;
+      }
+      calls = [];
+      mcpClients.set(ip, calls);
     }
-    const used = (mcpWindow.get(ip) ?? 0) + 1;
-    mcpWindow.set(ip, used);
-    return used <= mcpLimit.callsPerWindow;
+    let expired = 0;
+    while (expired < calls.length && calls[expired] <= cutoff) expired++;
+    if (expired) calls.splice(0, expired);
+    if (calls.length >= mcpLimit.callsPerWindow) return false;
+    calls.push(now);
+    return true;
   };
   const mcpHost = (ip, signal) => ({
     templates: () =>
@@ -606,11 +618,36 @@ export function createApi(options = {}) {
     },
   });
   const handleMcp = async (request, response) => {
+    if (
+      request.headers["content-type"]?.split(";")[0]?.trim() !==
+      "application/json"
+    ) {
+      mcpError(response, 415, -32600, "Expected application/json.");
+      request.resume();
+      return;
+    }
+    if (Number(request.headers["content-length"] ?? 0) > LIMITS.requestBytes) {
+      mcpError(response, 413, -32600, "Request exceeds 256 KiB.");
+      request.resume();
+      return;
+    }
+    const ip = clientAddress(
+      request.socket.remoteAddress,
+      request.headers["x-forwarded-for"],
+      isTrustedProxy,
+    );
+    if (!mcpAllowed(ip) || mcpInFlight >= mcpLimit.inFlight) {
+      response.setHeader("retry-after", "60");
+      mcpError(response, 429, -32000, "Too many MCP requests.");
+      request.resume();
+      return;
+    }
+    mcpInFlight += 1;
+    const responseDone = finished(response, { cleanup: true }).catch(() => {});
     const controller = new AbortController();
     controllers.add(controller);
     response.on("close", () => controller.abort());
     const started = performance.now();
-    let counted = false;
     try {
       let mcp;
       try {
@@ -620,6 +657,7 @@ export function createApi(options = {}) {
         request.resume();
         return;
       }
+      if (controller.signal.aborted) return;
       const version = request.headers["mcp-protocol-version"];
       if (
         version !== undefined &&
@@ -629,40 +667,13 @@ export function createApi(options = {}) {
         request.resume();
         return;
       }
-      if (
-        request.headers["content-type"]?.split(";")[0]?.trim() !==
-        "application/json"
-      ) {
-        mcpError(response, 415, -32600, "Expected application/json.");
-        request.resume();
-        return;
-      }
-      if (
-        Number(request.headers["content-length"] ?? 0) > LIMITS.requestBytes
-      ) {
-        mcpError(response, 413, -32600, "Request exceeds 256 KiB.");
-        request.resume();
-        return;
-      }
-      const ip = clientAddress(
-        request.socket.remoteAddress,
-        request.headers["x-forwarded-for"],
-        isTrustedProxy,
-      );
-      if (!mcpAllowed(ip) || mcpInFlight >= mcpLimit.inFlight) {
-        response.setHeader("retry-after", "60");
-        mcpError(response, 429, -32000, "Too many MCP requests.");
-        request.resume();
-        return;
-      }
-      mcpInFlight += 1;
-      counted = true;
       const chunks = [];
       let size = 0;
-      for await (const chunk of request) {
+      for await (const chunk of request.iterator({ destroyOnReturn: false })) {
         size += chunk.length;
         if (size > LIMITS.requestBytes) {
           mcpError(response, 413, -32600, "Request exceeds 256 KiB.");
+          request.resume();
           return;
         }
         chunks.push(chunk);
@@ -701,7 +712,8 @@ export function createApi(options = {}) {
       if (!controller.signal.aborted)
         mcpError(response, 500, -32603, "Internal error.");
     } finally {
-      if (counted) mcpInFlight -= 1;
+      await responseDone;
+      mcpInFlight -= 1;
       controllers.delete(controller);
     }
   };
@@ -711,13 +723,20 @@ export function createApi(options = {}) {
     (request, response) => {
       response.setHeader("x-content-type-options", "nosniff");
       response.setHeader("cache-control", "no-store");
+      const pathname = URL.parse(
+        request.url ?? "/",
+        "http://localhost",
+      )?.pathname;
       const origin = request.headers.origin;
       if (origin && !allowedOrigins.has(origin)) {
-        json(response, 403, {
-          ok: false,
-          code: "origin-denied",
-          message: "Origin is not allowed.",
-        });
+        if (pathname === "/mcp")
+          mcpError(response, 403, -32600, "Origin is not allowed.");
+        else
+          json(response, 403, {
+            ok: false,
+            code: "origin-denied",
+            message: "Origin is not allowed.",
+          });
         return;
       }
       if (origin) {
@@ -738,7 +757,6 @@ export function createApi(options = {}) {
         response.end();
         return;
       }
-      const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
       if (request.method === "GET" && pathname === "/health") {
         json(response, 200, {
           status: "ok",

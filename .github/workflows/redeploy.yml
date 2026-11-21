@@ -53,3 +53,5 @@ jobs:
           PDF_DEPLOY_HOST_KEY: ${{ vars.PDF_DEPLOY_HOST_KEY }}
           GH_TOKEN: ${{ github.token }}
         run: bash deploy/vps/release.sh
+      - name: Verify MCP through the public edge
+        run: node deploy/vps/verify-mcp.mjs

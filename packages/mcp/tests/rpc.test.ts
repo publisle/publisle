@@ -262,6 +262,55 @@ describe("authoring tools", () => {
     expect(again["document"]).toEqual(imported["document"]);
   });
 
+  it("distinguishes invalid JSON from invalid document shape in source", async () => {
+    for (const [source, error] of [
+      ['{"unfinished":', "`source` is not valid JSON."],
+      ['{"a":1}', "`source` is not a valid Publisle document."],
+      ['"text"', "`source` is not a valid Publisle document."],
+    ] as const) {
+      const result = await call("import_json", { source });
+      expect(result.isError).toBe(true);
+      expect(structured(result)).toMatchObject({ error });
+    }
+  });
+
+  it("applies the same structural boundary to imports and validation", async () => {
+    const markdown = "> ".repeat(75) + "Nested quotation.";
+    const imported = await call("import_markdown", { markdown });
+    expect(imported.isError).toBe(true);
+    expect(structured(imported)).not.toHaveProperty("document");
+    const diagnostics = structured(imported)["diagnostics"] as {
+      code: string;
+      message: string;
+    }[];
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.code).toBe("document-migration-failed");
+    expect(diagnostics[0]?.message).toContain("structural limit");
+
+    let nested: JsonObject = {};
+    for (let depth = 0; depth <= 128; depth++) nested = { nested };
+    const document = { ...sampleDocument(), extensions: nested };
+    const [parsed, validation] = await Promise.all([
+      call("import_json", { source: JSON.stringify(document) }),
+      call("validate", { document }),
+    ]);
+    expect(parsed.isError).toBe(true);
+    expect(structured(parsed)["diagnostics"]).toEqual(
+      structured(validation)["diagnostics"],
+    );
+  });
+
+  it("rejects Markdown that expands beyond the MCP request cap", async () => {
+    const result = await call("import_markdown", {
+      markdown: "Some text with $x^2$.\n\n".repeat(2400),
+    });
+    expect(result.isError).toBe(true);
+    expect(structured(result)).toMatchObject({
+      diagnostics: [expect.objectContaining({ code: "request-limit" })],
+    });
+    expect(structured(result)).not.toHaveProperty("document");
+  });
+
   it("renders HTML, outline and references", async () => {
     const document = sampleDocument();
     const html = structured(await call("render_html", { document }));

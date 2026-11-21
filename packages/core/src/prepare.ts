@@ -20,7 +20,8 @@ import {
   type PreparedDocument,
   type ReferenceKind,
   type ReferenceTarget,
-  traverseDeclared,
+  compileTraversal,
+  type TraversalDeclaration,
   validateSemantics,
   resolvePointer,
   TraversalError,
@@ -33,6 +34,11 @@ import {
 } from "@publisle/schema";
 
 import type { AnyPortableBlockDefinition, PrepareOptions } from "./types.ts";
+
+const readableTraversal = {
+  root: EXPLANATION_TRAVERSAL,
+  rules: RICH_TRAVERSAL_RULES,
+};
 
 function mergeDefaults(defaults: unknown, data: unknown): unknown {
   if (
@@ -360,8 +366,19 @@ function prepareDocument(
     preparationPhase("reference/resource collection", () =>
       collectVisits(...args),
     );
-  const traverse: typeof traverseDeclared = (...args) =>
-    preparationPhase("declared traversal", () => traverseDeclared(...args));
+  const traversals = new Map<
+    TraversalDeclaration,
+    ReturnType<typeof compileTraversal>
+  >();
+  const traverse = (value: unknown, declaration: TraversalDeclaration) =>
+    preparationPhase("declared traversal", () => {
+      let evaluate = traversals.get(declaration);
+      if (!evaluate) {
+        evaluate = compileTraversal(declaration);
+        traversals.set(declaration, evaluate);
+      }
+      return evaluate(value);
+    });
 
   for (const block of document.blocks) {
     if (ids.has(block.id)) {
@@ -385,10 +402,7 @@ function prepareDocument(
       if (content && !definition)
         collect(
           block,
-          traverse(content, {
-            root: EXPLANATION_TRAVERSAL,
-            rules: RICH_TRAVERSAL_RULES,
-          }).map((visit) => ({
+          traverse(content, readableTraversal).map((visit) => ({
             ...visit,
             pointer: `${block.readable?.binding ?? "/readable/content"}${visit.pointer}`,
           })),
@@ -487,10 +501,7 @@ function prepareDocument(
       if (readableContent)
         collect(
           prepared,
-          traverse(readableContent, {
-            root: EXPLANATION_TRAVERSAL,
-            rules: RICH_TRAVERSAL_RULES,
-          }).map((visit) => ({
+          traverse(readableContent, readableTraversal).map((visit) => ({
             ...visit,
             pointer: `${block.readable?.binding ?? "/readable/content"}${visit.pointer}`,
           })),

@@ -82,6 +82,7 @@ export {
   resolvePointer,
   pointerToken,
   traverseDeclared,
+  compileTraversal,
   validateTraversal,
   TraversalError,
   RICH_TRAVERSAL_RULES,
