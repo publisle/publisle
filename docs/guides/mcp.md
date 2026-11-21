@@ -108,13 +108,14 @@ The server also offers the block catalog and a sample document as resources, and
 | Limit                | Value                                                                 |
 | -------------------- | --------------------------------------------------------------------- |
 | Request body         | 256 KiB                                                               |
-| MCP request rate     | 90 requests per client IP in any 60-second window                     |
+| MCP call rate        | 90 calls per client IP in any 60-second window                        |
 | Concurrent MCP calls | Six in-flight requests across the API                                 |
 | Tool time budget     | Five seconds for editing tools and the PDF deadline for `compile_pdf` |
 | PDF compilations     | 15 attempts per IP per 10 minutes, with cached PDFs exempt            |
 
 The API returns HTTP 429 with `Retry-After: 60` when an MCP request exceeds
-either admission limit. Cache hits still count toward MCP admission.
+either admission limit. Each message in a JSON-RPC batch counts toward the call
+quota. Cache hits still count toward MCP admission.
 
 ## Run it locally
 

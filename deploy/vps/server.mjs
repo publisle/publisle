@@ -17,6 +17,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { finished } from "node:stream/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   LIMITS,
   TEMPLATES,
@@ -242,6 +243,9 @@ const MCP_LIMITS = Object.freeze({
   inFlight: 6,
 });
 const MCP_MAX_CLIENTS = 4096;
+const MCP_ADMISSION_INTERVAL_MS = 15;
+const MAX_PDF_REQUESTS = 32;
+const MAX_API_CONNECTIONS = 128;
 
 function cacheKey(request, image) {
   return createHash("sha256")
@@ -502,6 +506,7 @@ export function createApi(options = {}) {
   const allowedOrigins = new Set(options.origins ?? ["https://publisle.xyz"]);
   let ready = options.ready ?? false;
   const controllers = new Set();
+  let pdfInFlight = 0;
   const json = (response, status, payload) => {
     if (response.destroyed) return;
     const body = JSON.stringify(payload);
@@ -533,11 +538,15 @@ export function createApi(options = {}) {
       id: null,
       error: { code, message },
     });
+  const rejectMcp = (response) => {
+    response.setHeader("retry-after", "60");
+    mcpError(response, 429, -32000, "Too many MCP requests.");
+  };
   const mcpClients = new Map();
   let mcpInFlight = 0;
   const mcpLimit = options.mcpLimit ?? MCP_LIMITS;
   const mcpNow = options.mcpNow ?? (() => performance.now());
-  const mcpAllowed = (ip) => {
+  const mcpAllowed = (ip, count = 1) => {
     const now = mcpNow();
     const cutoff = now - mcpLimit.windowMs;
     let calls = mcpClients.get(ip);
@@ -553,8 +562,8 @@ export function createApi(options = {}) {
     let expired = 0;
     while (expired < calls.length && calls[expired] <= cutoff) expired++;
     if (expired) calls.splice(0, expired);
-    if (calls.length >= mcpLimit.callsPerWindow) return false;
-    calls.push(now);
+    if (calls.length + count > mcpLimit.callsPerWindow) return false;
+    for (let index = 0; index < count; index++) calls.push(now);
     return true;
   };
   const mcpHost = (ip, signal) => ({
@@ -637,8 +646,7 @@ export function createApi(options = {}) {
       isTrustedProxy,
     );
     if (!mcpAllowed(ip) || mcpInFlight >= mcpLimit.inFlight) {
-      response.setHeader("retry-after", "60");
-      mcpError(response, 429, -32000, "Too many MCP requests.");
+      rejectMcp(response);
       request.resume();
       return;
     }
@@ -649,6 +657,10 @@ export function createApi(options = {}) {
     response.on("close", () => controller.abort());
     const started = performance.now();
     try {
+      // Let the API admit incoming socket events before synchronous tools run.
+      await delay(MCP_ADMISSION_INTERVAL_MS, undefined, {
+        signal: controller.signal,
+      });
       let mcp;
       try {
         mcp = await loadMcp();
@@ -687,7 +699,23 @@ export function createApi(options = {}) {
         mcpError(response, 400, -32700, "Parse error.");
         return;
       }
-      const outcome = await mcp.handleRpcText(text, {
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        mcpError(response, 200, -32700, "Parse error.");
+        return;
+      }
+      if (
+        Array.isArray(payload) &&
+        payload.length > 1 &&
+        payload.length <= mcp.MAX_BATCH &&
+        !mcpAllowed(ip, payload.length - 1)
+      ) {
+        rejectMcp(response);
+        return;
+      }
+      const outcome = await mcp.handleRpc(payload, {
         host: mcpHost(ip, controller.signal),
         signal: controller.signal,
       });
@@ -814,6 +842,17 @@ export function createApi(options = {}) {
         request.resume();
         return;
       }
+      if (pdfInFlight >= MAX_PDF_REQUESTS) {
+        response.setHeader("retry-after", "60");
+        json(response, 429, {
+          ok: false,
+          code: "busy",
+          message: "Service is busy. Try again later.",
+        });
+        request.resume();
+        return;
+      }
+      pdfInFlight += 1;
       const controller = new AbortController();
       controllers.add(controller);
       response.on("close", () => controller.abort());
@@ -963,12 +1002,14 @@ export function createApi(options = {}) {
         } finally {
           request.resume();
           release?.();
+          pdfInFlight -= 1;
           controllers.delete(controller);
         }
       })();
     },
   );
-  server.maxConnections = 32;
+  // Leave room to return HTTP errors for bursts forwarded by the edge proxy.
+  server.maxConnections = MAX_API_CONNECTIONS;
   return {
     server,
     setReady(value) {
