@@ -317,6 +317,49 @@ test("the production MCP quota rolls across windows and keys by the trusted clie
   }
 });
 
+test("batched messages count toward the per-IP quota", async () => {
+  const { api, post } = await start();
+  const batch = (length) =>
+    Array.from({ length }, (_, id) => ({ ...ping, id }));
+  try {
+    for (let index = 0; index < 5; index++) {
+      const response = await post(batch(16));
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).length, 16);
+    }
+    await assertMcpLimited(await post(batch(11)));
+    const allowed = await post(batch(9));
+    assert.equal(allowed.status, 200);
+    assert.equal((await allowed.json()).length, 9);
+    await assertMcpLimited(await post(ping));
+  } finally {
+    api.shutdown();
+  }
+});
+
+test("a burst of ordinary MCP pings hits the in-flight limit", async () => {
+  const { api, post } = await start();
+  try {
+    await (await post(ping)).json();
+    for (const length of [24, 100]) {
+      const responses = await Promise.all(
+        Array.from({ length }, (_, id) => post({ ...ping, id })),
+      );
+      assert.ok(responses.some(({ status }) => status === 429));
+      assert.ok(responses.some(({ status }) => status === 200));
+      for (const response of responses) {
+        if (response.status === 429) await assertMcpLimited(response);
+        else {
+          assert.equal(response.status, 200);
+          assert.deepEqual((await response.json()).result, {});
+        }
+      }
+    }
+  } finally {
+    api.shutdown();
+  }
+});
+
 test(
   "the production cap covers bundle startup and recovers after a disconnect",
   { timeout: 10_000 },
@@ -339,8 +382,7 @@ test(
       ),
     );
     const mcp = {
-      async handleRpcText(text, { signal }) {
-        const { id } = JSON.parse(text);
+      async handleRpc({ id }, { signal }) {
         if (id < 6) {
           if (++executing === 6) sixExecuting.resolve();
           if (id === 0) {

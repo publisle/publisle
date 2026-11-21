@@ -134,3 +134,23 @@ assert.ok(
 console.log(
   `Hosted MCP transport and round trips passed. Large document validated in ${validation.ms} ms and rendered in ${rendering.ms} ms.`,
 );
+
+// A small number of HTTP requests checks the per-message quota on the live API.
+let limited = false;
+for (let batch = 0; batch < 6; batch++) {
+  const messages = Array.from({ length: 16 }, () => message("ping"));
+  const response = await post("/mcp", `[${messages.join(",")}]`);
+  if (response.status === 429) {
+    assert.equal(response.headers.get("retry-after"), "60");
+    assert.deepEqual(await decode(response, 429), {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32000, message: "Too many MCP requests." },
+    });
+    limited = true;
+    break;
+  }
+  assert.equal((await decode(response, 200)).length, messages.length);
+}
+assert.ok(limited, "The public MCP endpoint did not enforce its call quota.");
+console.log("Hosted MCP quota returned a retryable HTTP 429 for a batch.");
